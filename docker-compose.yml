@@ -1,0 +1,21 @@
+services:
+
+  # Ejecuta la exploración y guarda el mapa resultante
+  train:
+    build: .
+    command: python main.py
+    volumes:
+      - ./maps:/app/maps
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # Visualiza la exploración en el navegador → http://localhost:6080/vnc.html
+  visualize:
+    build: .
+    command: /start_vnc.sh
+    volumes:
+      - ./maps:/app/maps
+    environment:
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "6080:6080"
