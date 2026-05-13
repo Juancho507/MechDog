@@ -21,5 +21,5 @@ echo "============================================"
 echo ""
 
 # 4. Run the visualization
-python visualize.py "$@"
+python -m exploration.visualizer "$@"
 

@@ -16,7 +16,7 @@ def get_algorithm(name: str, robot, grid):
         raise ValueError(f"Algoritmo '{name}' no existe. Opciones: {list(opts)}")
     alg = cls(robot, grid)
     # ── Inicializar el grid con la posición y lectura inicial ──────────────
-    grid.update(robot.get_position(), robot.sense())
+    grid.update(robot.get_position(), robot.sense(), robot.get_heading())
     return alg
 
 
@@ -87,13 +87,14 @@ class BFSExplorer(BaseExplorer):
 
         # 1. Intentar ir a una celda frontera (FREE adyacente a UNKNOWN)
         frontiers = set(map(tuple, self.grid.frontier_cells()))
+        frontiers.discard(start)
 
         # 2. Si no hay fronteras, ir a cualquier celda FREE no visitada
         if not frontiers:
             targets = set()
             for r in range(self.grid.height):
                 for c in range(self.grid.width):
-                    if self.grid.is_free(r, c) and not self.grid.visited[r, c]:
+                    if (r, c) != start and self.grid.is_free(r, c) and not self.grid.visited[r, c]:
                         targets.add((r, c))
             if not targets:
                 return []
@@ -190,7 +191,8 @@ class AStarExplorer(BaseExplorer):
 
     def step(self):
         if not self._path:
-            fronts = self.grid.frontier_cells()
+            pos = self.robot.get_position()
+            fronts = [f for f in self.grid.frontier_cells() if f != pos]
             if fronts:
                 target = min(fronts, key=self._h)
             else:
@@ -198,7 +200,7 @@ class AStarExplorer(BaseExplorer):
                 unvisited = [(r, c)
                              for r in range(self.grid.height)
                              for c in range(self.grid.width)
-                             if self.grid.is_free(r, c) and not self.grid.visited[r, c]]
+                             if (r, c) != pos and self.grid.is_free(r, c) and not self.grid.visited[r, c]]
                 if not unvisited:
                     self._done = True
                     print("A*: exploración completa.")

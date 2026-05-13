@@ -1,15 +1,19 @@
 services:
 
-  # Ejecuta la exploración y guarda el mapa resultante
-  train:
+  # ── ALGORITMOS (headless, sin GUI) ──────────────────────────────────
+  # Uso: docker compose run solver bfs 42
+
+  solver:
     build: .
-    command: python main.py
+    entrypoint: python -m exploration.solver
     volumes:
       - ./maps:/app/maps
     environment:
       - PYTHONUNBUFFERED=1
 
-  # Visualiza la exploración en el navegador → http://localhost:6080/vnc.html
+  # ── SIMULACIÓN 3D (GUI en navegador vía noVNC) ──────────────────────
+  # Abrir http://localhost:6080/vnc.html
+
   visualize:
     build: .
     command: /start_vnc.sh
@@ -19,3 +23,12 @@ services:
       - PYTHONUNBUFFERED=1
     ports:
       - "6080:6080"
+
+  # Conveniencia: ejecutar entrenamiento sin pensar en entrypoint
+  train:
+    build: .
+    command: python main.py
+    volumes:
+      - ./maps:/app/maps
+    environment:
+      - PYTHONUNBUFFERED=1

@@ -24,7 +24,7 @@ class MazeEnvironment:
         p.setGravity(0, 0, -9.81)
 
         if gui:
-            total = size * 0.5   # cell_size / 2 = 0.5
+            total = size * 0.5
             p.resetDebugVisualizerCamera(
                 cameraDistance=size * 0.5 * 1.8,
                 cameraYaw=45,
@@ -33,33 +33,30 @@ class MazeEnvironment:
                                       total * size / size, 0],
             )
 
-        self._maze: np.ndarray = None   # grilla expandida (2*size+1)
+        self._maze: np.ndarray = None
         self.start = (0, 0)
         self.goal  = (size - 1, size - 1)
         self._build()
-
-    # ── CONSTRUCCIÓN ─────────────────────────────────────────────────────────
 
     def _build(self):
         p.loadURDF("plane.urdf")
         self._maze = self._generate()
 
         N  = self._maze.shape[0]
-        cs = 0.5   # mitad del tamaño de celda expandida (cell_size=1/2)
+        cs = 0.5
 
         for row in range(N):
             for col in range(N):
                 if self._maze[row, col] == 1:
                     self._add_wall(row, col, cs)
 
-        self._add_marker(*self.start, color=[0, 1, 0, 0.9])   # verde = inicio
-        self._add_marker(*self.goal,  color=[1, 0, 0, 0.9])   # rojo  = meta
+        self._add_marker(*self.start, color=[0, 1, 0, 0.9])
+        self._add_marker(*self.goal,  color=[1, 0, 0, 0.9])
 
         walls = int(self._maze.sum())
         print(f"Laberinto {self.size}x{self.size} listo ({walls} bloques de pared).")
 
     def _generate(self) -> np.ndarray:
-        """Recursive Backtracker → grilla expandida (2*size+1 x 2*size+1)."""
         rng  = random.Random(self.seed)
         size = self.size
         N    = 2 * size + 1
@@ -79,8 +76,8 @@ class MazeEnvironment:
                          and not visited[r+dr][c+dc]]
             if neighbors:
                 nr, nc, dr, dc = rng.choice(neighbors)
-                mg[2*r+1+dr][2*c+1+dc] = 0   # abrir pared
-                mg[2*nr+1][2*nc+1]     = 0   # abrir celda destino
+                mg[2*r+1+dr][2*c+1+dc] = 0
+                mg[2*nr+1][2*nc+1]     = 0
                 visited[nr][nc] = True
                 stack.append((nr, nc))
             else:
@@ -108,10 +105,7 @@ class MazeEnvironment:
         p.createMultiBody(baseVisualShapeIndex=vis,
                           basePosition=[ec*cs, er*cs, 0.15])
 
-    # ── UTILIDADES ───────────────────────────────────────────────────────────
-
     def cell_to_world(self, row: int, col: int):
-        """Celda de paso (row, col) → coordenadas mundo (x, y)."""
         cs = 0.5
         return (2*col+1) * cs, (2*row+1) * cs
 
