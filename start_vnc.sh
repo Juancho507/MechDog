@@ -22,3 +22,4 @@ echo ""
 
 # 4. Run the visualization
 python visualize.py "$@"
+
