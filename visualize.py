@@ -10,7 +10,7 @@ from exploration.algorithms import get_algorithm
 MAZE_SIZE    = 10
 SENSOR_RANGE = 1.5
 MAX_STEPS    = 3000
-STEP_DELAY   = 0.03    # segundos entre pasos (velocidad de animación)
+STEP_DELAY   = 1    # segundos entre pasos (velocidad de animación)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
