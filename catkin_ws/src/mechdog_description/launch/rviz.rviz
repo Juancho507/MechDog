@@ -1,0 +1,89 @@
+<?xml version="1.0" ?>
+<VisualizationManager>
+  <Class name="rviz/Displays" name="Displays">
+    <Property name="Named Top Values">
+      <A>
+        <A name="Alpha">1.0</A>
+        <A name="Bottom Top">0.5</A>
+        <A name="Font Size">9</A>
+        <A name="Left From Edge">0.025</A>
+        <A name="Line count">10</A>
+        <A name="Names">
+          <AA/>
+        </A>
+        <A name="Right From Edge">0.025</A>
+        <A name="Top From Edge">0.025</A>
+        <A name="Value Names">
+          <AA/>
+        </A>
+        <A name="Values">
+          <AA/>
+        </A>
+        <A name="Visible">1</A>
+      </A>
+    </Property>
+    <Property name="Named Top List">
+      <A/>
+    </Property>
+  </Class>
+  <Class name="rviz/Selection" name="Selection"/>
+  <Class name="rviz/Views" name="Views">
+    <Property name="Current">
+      <Value name="Current">
+        <Class name="rviz/OrbitView" name="Current">
+          <Property name="Distance">5</Property>
+          <Property name="Enable Stereo Rendering">
+            <Bool value="False"/>
+          </Property>
+          <Property name="Focal Point">
+            <A>
+              <A name="X">0.0</A>
+              <A name="Y">0.0</A>
+              <A name="Z">0.0</A>
+            </A>
+          </Property>
+          <Property name="Focal Shape Fixed Size">0.1</Property>
+          <Property name="Focal Shape Type">Sphere</Property>
+          <Property name="Pitch">0.6544984694970703</Property>
+          <Property name="Yaw">0.7853981256484985</Property>
+        </Class>
+      </Value>
+    </Property>
+    <Property name="Named Left">
+      <Value/>
+    </Property>
+    <Property name="Named Right">
+      <Value/>
+    </Property>
+  </Class>
+  <Class name="rviz/Global Options" name="Global Options">
+    <Property name="Back Ground Color">
+      <A>
+        <A name="B">48</A>
+        <A name="G">48</A>
+        <A name="R">48</A>
+      </A>
+    </Property>
+    <Property name="Fixed Frame">odom</Property>
+    <Property name="Frame Timeout">15</Property>
+  </Class>
+  <Class name="rviz/Manager" name="Manager">
+    <Property name="Geometry">
+      <A>
+        <A name="Height">768</A>
+        <A name="Width">1024</A>
+        <A name="X">338</A>
+        <A name="Y">138</A>
+      </A>
+    </Property>
+    <Property name="Log File">
+      <A>
+        <A name="Filename">/tmp/rviz_logging_config</A>
+      </A>
+    </Property>
+    <Property name="Save Shape Properties">True</Property>
+    <Property name="Splash Screen">True</Property>
+    <Property name="Splash Screen Delay">1</Property>
+  </Class>
+</VisualizationManager>
+EOF

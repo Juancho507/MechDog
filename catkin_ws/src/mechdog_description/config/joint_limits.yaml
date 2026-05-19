@@ -1,0 +1,11 @@
+# Joint limits for MechDog articulations (SI units).
+# Extend when leg controllers / ros_control are integrated.
+#
+# Example entry (uncomment and adjust when joints exist):
+# joints:
+#   leg_fl_hip:
+#     position: { min: -1.57, max: 1.57 }
+#     velocity: { max: 3.14 }
+#     effort: { max: 20.0 }
+
+joints: {}

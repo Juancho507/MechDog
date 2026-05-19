@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>mechdog_description</name>
+  <version>0.0.1</version>
+  <description>URDF and meshes for MechDog robot</description>
+  <maintainer email="developer@todo.todo">TODO</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>urdf</build_depend>
+  <build_depend>xacro</build_depend>
+  <build_depend>robot_state_publisher</build_depend>
+
+  <exec_depend>urdf</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+
+  <export>
+    <architecture_independent />
+  </export>
+</package>

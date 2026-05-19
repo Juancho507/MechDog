@@ -1,0 +1,22 @@
+# Catkin / colcon
+catkin_ws/build/
+catkin_ws/devel/
+catkin_ws/install/
+catkin_ws/logs/
+catkin_ws/.catkin_tools/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+
+# Logs / bags
+*.log
+*.bag

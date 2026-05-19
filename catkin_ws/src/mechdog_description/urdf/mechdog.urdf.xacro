@@ -1,0 +1,249 @@
+<?xml version="1.0"?>
+<robot name="mechdog" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Robot Properties -->
+  <xacro:property name="robot_length" value="0.5"/>
+  <xacro:property name="robot_width" value="0.3"/>
+  <xacro:property name="robot_height" value="0.2"/>
+  <xacro:property name="robot_mass" value="15.0"/>
+  
+  <!-- Sensor Offsets -->
+  <xacro:property name="lidar_offset_x" value="0.2"/>
+  <xacro:property name="lidar_offset_z" value="0.15"/>
+  
+  <!-- Velocity Limits -->
+  <xacro:property name="max_velocity" value="1.0"/>
+  <xacro:property name="max_angular_velocity" value="1.5"/>
+
+  <!-- Materials -->
+  <material name="blue">
+    <color rgba="0.0 0.0 0.8 1.0"/>
+  </material>
+  <material name="gray">
+    <color rgba="0.8 0.8 0.8 1.0"/>
+  </material>
+  <material name="black">
+    <color rgba="0.0 0.0 0.0 1.0"/>
+  </material>
+  <material name="red">
+    <color rgba="0.8 0.0 0.0 1.0"/>
+  </material>
+
+  <!-- Base Link (main body) -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="${robot_length} ${robot_width} ${robot_height}"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${robot_length} ${robot_width} ${robot_height}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="${robot_mass}"/>
+      <origin xyz="0 0 0" />
+      <inertia  ixx="${robot_mass * (robot_length*robot_length + robot_width*robot_width) / 12.0}"
+                ixy="0.0"  ixz="0.0"
+                iyy="${robot_mass * (robot_width*robot_width + robot_height*robot_height) / 12.0}"
+                iyz="0.0"  izz="${robot_mass * (robot_length*robot_length + robot_height*robot_height) / 12.0}"/>
+    </inertial>
+  </link>
+
+  <!-- Base Footprint (for navigation) -->
+  <link name="base_footprint">
+  </link>
+
+  <!-- Static transform between base_footprint and base_link -->
+  <joint name="base_footprint_base_link" type="fixed">
+    <origin xyz="0 0 ${robot_height/2}" rpy="0 0 0"/>
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+  </joint>
+
+  <!-- LIDAR Sensor -->
+  <link name="lidar_link">
+    <visual>
+      <geometry>
+        <cylinder length="0.1" radius="0.05"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.1" radius="0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0" />
+      <inertia  ixx="0.0001" ixy="0.0" ixz="0.0"
+                iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <!-- Static transform from base_link to lidar_link -->
+  <joint name="base_link_lidar_link" type="fixed">
+    <origin xyz="${lidar_offset_x} 0 ${lidar_offset_z}" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+  </joint>
+
+  <!-- Simplified Leg Links (for visualization) -->
+  <!-- Front Left Leg -->
+  <link name="leg_front_left">
+    <visual>
+      <geometry>
+        <cylinder length="0.15" radius="0.03"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.15" radius="0.03"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0"
+               iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- Front Right Leg -->
+  <link name="leg_front_right">
+    <visual>
+      <geometry>
+        <cylinder length="0.15" radius="0.03"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.15" radius="0.03"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0"
+               iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- Rear Left Leg -->
+  <link name="leg_rear_left">
+    <visual>
+      <geometry>
+        <cylinder length="0.15" radius="0.03"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.15" radius="0.03"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0"
+               iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- Rear Right Leg -->
+  <link name="leg_rear_right">
+    <visual>
+      <geometry>
+        <cylinder length="0.15" radius="0.03"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.15" radius="0.03"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0"
+               iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- Leg Joints (fixed for now, could be made movable later) -->
+  <!-- Front Left -->
+  <joint name="base_link_leg_front_left" type="fixed">
+    <origin xyz="${robot_length/2} ${robot_width/2} 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="leg_front_left"/>
+  </joint>
+
+  <!-- Front Right -->
+  <joint name="base_link_leg_front_right" type="fixed">
+    <origin xyz="${robot_length/2} -${robot_width/2} 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="leg_front_right"/>
+  </joint>
+
+  <!-- Rear Left -->
+  <joint name="base_link_leg_rear_left" type="fixed">
+    <origin xyz="-${robot_length/2} ${robot_width/2} 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="leg_rear_left"/>
+  </joint>
+
+  <!-- Rear Right -->
+  <joint name="base_link_leg_rear_right" type="fixed">
+    <origin xyz="-${robot_length/2} -${robot_width/2} 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="leg_rear_right"/>
+  </joint>
+
+  <!-- Gazebo Plugins (conditioned on simulation) -->
+  <xacro:unless eval="$(arg simulation)">
+    <!-- Empty tag when not in simulation -->
+  </xacro:unless>
+  <xacro:if eval="$(arg simulation)">
+    <gazebo>
+      <!-- Ground plane -->
+      <static>true</static>
+    </gazebo>
+    
+    <!-- LIDAR Sensor Plugin -->
+    <gazebo reference="lidar_link">
+      <sensor type="ray" name="lidar_sensor">
+        <update_rate>20</update_rate>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>360</samples>
+              <resolution>1</resolution>
+              <min_angle>-3.14159</min_angle>
+              <max_angle>3.14159</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <min>0.1</min>
+            <max>10.0</max>
+            <resolution>0.01</resolution>
+          </range>
+        </ray>
+        <plugin name="gazebo_ros_base_sensor" filename="libgazebo_ros_base_sensor.so">
+          <ros>
+            <namespace>/mechdog</namespace>
+            <remapping>~/out:=scan</remapping>
+          </ros>
+          <outputType>sensor_msgs/LaserScan</outputType>
+        </plugin>
+      </sensor>
+    </gazebo>
+  </xacro:if>
+
+</robot>
+EOF

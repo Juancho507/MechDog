@@ -1,0 +1,30 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.8
+      Class: rviz/RobotModel
+      Enabled: true
+      Name: RobotModel
+      Robot Description: robot_description
+      TF Prefix: ""
+      Value: true
+    - Class: rviz/TF
+      Enabled: true
+      Name: TF
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: base_link
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+  Value: true
+Window Geometry:
+  Displays:
+    collapsed: false

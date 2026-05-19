@@ -1,0 +1,6 @@
+@echo off
+echo Sourcing ROS Noetic environment...
+call "C:\opt\ros\noetic\x64\setup.bat"
+echo Building catkin workspace...
+cd /d "%~dp0catkin_ws"
+catkin_make
