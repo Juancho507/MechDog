@@ -1,0 +1,45 @@
+# Environment-Specific Configuration: SIMULATION
+# Overrides for simulated environment (Gazebo/PyBullet)
+
+environment:
+  name: "simulation"
+  type: "virtual"
+  
+  # Sensor topic remapping (if needed)
+  topic_remapping:
+    # Map simulation topics to standard navigation topics
+    scan_input: "/mechdog/scan"  # From noise_injector in mechdog_sim
+    odom_input: "/mechdog/odom"  # From noise_injector in mechdog_sim
+    
+  # Velocity limits (can be more aggressive in simulation)
+  velocity:
+    max_linear: 1.2  # m/s (slightly higher for testing)
+    max_angular: 1.8  # rad/s
+    
+  # Sensor characteristics
+  sensors:
+    lidar:
+      max_range: 10.0  # meters
+      min_range: 0.10  # meters
+      noise_level: "medium"  # Expected noise from noise_injector
+      
+  # Planning aggressiveness
+  planning:
+    global_replan_distance: 0.3  # meters (replan more frequently)
+    local_planning_frequency: 20.0  # Hz
+    
+  # Safety (can be slightly relaxed for development)
+  safety:
+    critical_distance: 0.12  # meters (slightly less conservative)
+    warning_distance: 0.25  # meters
+    
+  # Computational resources
+  compute:
+    max_planning_time: 0.2  # seconds (more time available)
+    high_frequency_mode: true
+    
+  # Debugging
+  debug:
+    visualize_plans: true
+    publish_debug_markers: true
+    log_level: "debug"

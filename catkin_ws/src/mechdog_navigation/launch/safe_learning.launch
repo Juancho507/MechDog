@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Safe Learning Safety Layer Only -->
+  <!-- Portable - works on simulation and real hardware -->
+  
+  <arg name="environment" default="simulation"/>
+  
+  <!-- Load configuration -->
+  <rosparam command="load" file="$(find mechdog_navigation)/config/safe_learning.yaml"/>
+  <rosparam command="load" file="$(find mechdog_navigation)/config/environments/$(arg environment).yaml"/>
+  
+  <!-- Launch safe learning controller -->
+  <node name="safe_learning" pkg="mechdog_navigation" type="safe_learning_node.py" output="screen">
+    <rosparam command="load" file="$(find mechdog_navigation)/config/safe_learning.yaml"/>
+  </node>
+  
+</launch>

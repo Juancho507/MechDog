@@ -1,0 +1,85 @@
+# Local Planner Configuration
+# Dynamic Window Approach (DWA) for continuous trajectory generation
+
+local_planner:
+  # Planner type
+  planner_type: "dwa"  # Dynamic Window Approach
+  
+  # Robot velocity limits (hardware-agnostic)
+  velocity_limits:
+    max_vel_x: 1.0  # m/s
+    min_vel_x: -0.2  # m/s (reverse)
+    max_vel_y: 0.0  # m/s (non-holonomic robot)
+    min_vel_y: 0.0  # m/s
+    max_vel_theta: 1.5  # rad/s
+    min_vel_theta: -1.5  # rad/s
+    
+  # Acceleration limits
+  acceleration_limits:
+    acc_lim_x: 2.0  # m/s^2
+    acc_lim_y: 0.0  # m/s^2
+    acc_lim_theta: 3.0  # rad/s^2
+    
+  # DWA specific parameters
+  dwa:
+    # Sampling resolution
+    vx_samples: 20  # Number of linear velocity samples
+    vy_samples: 1   # Number of lateral velocity samples (0 for differential drive)
+    vth_samples: 40  # Number of angular velocity samples
+    
+    # Simulation parameters
+    sim_time: 2.0  # seconds - how far to simulate trajectories
+    sim_granularity: 0.05  # seconds - time between trajectory points
+    angular_sim_granularity: 0.025  # seconds - angular simulation granularity
+    
+    # Trajectory scoring weights
+    scoring:
+      path_distance_bias: 32.0  # Weight for staying close to global path
+      goal_distance_bias: 20.0  # Weight for getting closer to goal
+      occdist_scale: 0.02  # Weight for avoiding obstacles
+      
+    # Forward simulation
+    forward_point_distance: 0.325  # meters - point on robot to use for trajectory sim
+    
+  # Obstacle avoidance
+  obstacles:
+    min_obstacle_distance: 0.3  # meters - minimum distance to obstacles
+    include_costmap_obstacles: true
+    
+  # Goal tolerance
+  goal_tolerance:
+    xy_goal_tolerance: 0.1  # meters
+    yaw_goal_tolerance: 0.1  # radians
+    latch_xy_goal_tolerance: false
+    
+  # Trajectory rollout
+  rollout:
+    max_planning_time: 0.1  # seconds per cycle
+    publish_cost_grid: false  # Publish evaluated trajectories (debug)
+    
+  # Safety
+  safety:
+    stop_time_buffer: 0.2  # seconds - safety buffer for stopping
+    oscillation_reset_dist: 0.05  # meters - detect oscillation
+    
+  # Path following
+  path_following:
+    lookahead_distance: 0.5  # meters - how far ahead to look on global path
+    prune_plan: true  # Remove passed waypoints
+    
+  # Topics (hardware-agnostic)
+  topics:
+    global_plan_input: "/mechdog/global_plan"
+    cmd_vel_output: "/cmd_vel"
+    odom_input: "/mechdog/odom"
+    scan_input: "/mechdog/scan"
+    local_plan_output: "/mechdog/local_plan"
+    
+  # Frames
+  frames:
+    global_frame: "map"
+    robot_frame: "base_footprint"
+    odom_frame: "odom"
+    
+  # Update rate
+  control_frequency: 20.0  # Hz

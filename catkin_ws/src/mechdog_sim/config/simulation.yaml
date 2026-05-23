@@ -1,0 +1,51 @@
+# MechDog Simulation Configuration
+# General simulation parameters for Gazebo environment
+
+simulation:
+  # World configuration
+  world:
+    name: "open_path_world"
+    gravity: -9.81  # m/s^2
+    physics_engine: "ode"  # Options: ode, bullet, simbody
+    real_time_factor: 1.0  # Simulation speed multiplier
+    max_step_size: 0.001  # seconds
+    
+  # Robot spawn configuration
+  robot:
+    spawn_x: 0.0
+    spawn_y: 0.0
+    spawn_z: 0.2  # Slightly above ground
+    spawn_yaw: 0.0  # radians
+    
+  # Path/corridor configuration
+  path:
+    width: 2.0  # meters
+    length: 20.0  # meters
+    wall_height: 0.5  # meters
+    
+  # Obstacle generation
+  obstacles:
+    enabled: true
+    count: 10  # Number of obstacles
+    min_distance: 1.0  # Minimum distance from robot spawn
+    max_distance: 18.0  # Maximum distance along path
+    shapes:
+      - "box"
+      - "cylinder"
+      - "sphere"
+    size_range:
+      min: 0.1  # meters
+      max: 0.5  # meters
+    
+  # Visualization
+  gui:
+    enabled: true
+    camera:
+      distance: 5.0
+      yaw: 45.0
+      pitch: -30.0
+      
+  # Sim-to-Real gap mitigation
+  noise_injection:
+    enabled: true
+    config_file: "$(find mechdog_sim)/config/noise_injection.yaml"

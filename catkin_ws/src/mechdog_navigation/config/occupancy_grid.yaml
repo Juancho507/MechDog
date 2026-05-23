@@ -1,0 +1,124 @@
+# Occupancy Grid Mapping Configuration
+# Real-time map construction from sensor data (hardware-agnostic)
+
+occupancy_grid:
+  # Map dimensions
+  map:
+    width: 50.0  # meters
+    height: 50.0  # meters
+    resolution: 0.05  # meters per cell
+    origin_x: -25.0  # meters (map center at robot spawn)
+    origin_y: -25.0  # meters
+    
+  # Initial state
+  initial:
+    occupancy_value: -1  # Unknown (-1), free (0), occupied (100)
+    
+  # Update parameters
+  update:
+    # Sensor integration
+    hit_probability: 0.7  # Probability cell is occupied when hit by ray
+    miss_probability: 0.4  # Probability cell is free when ray passes through
+    
+    # Bayesian update
+    use_log_odds: true
+    max_log_odds: 3.5  # Maximum log-odds value
+    min_log_odds: -2.0  # Minimum log-odds value
+    
+    # Update frequency
+    rate: 10.0  # Hz - map update frequency
+    
+  # Ray tracing
+  ray_trace:
+    max_range: 10.0  # meters - maximum sensor range to use
+    min_range: 0.1  # meters - minimum sensor range
+    ray_step: 0.01  # meters - step size for ray tracing
+    
+    # Obstacle marking
+    mark_threshold: 0.7  # Probability threshold to mark as obstacle
+    clear_threshold: 0.3  # Probability threshold to clear
+    
+  # Obstacle inflation (for navigation safety)
+  inflation:
+    enabled: true
+    radius: 0.3  # meters
+    inflation_decay: 0.9  # Decay factor for inflation cost
+    
+  # Map management
+  management:
+    # Dynamic updates
+    decay_rate: 0.01  # Decay old information (per second)
+    max_age: 30.0  # seconds - maximum age before clearing
+    
+    # Map pruning
+    prune_unknown: false  # Remove unknown cells at edges
+    
+  # LIDAR integration
+  lidar:
+    # Sensor model
+    sensor_model: "likelihood_field"  # Options: "likelihood_field", "beam"
+    
+    # Noise handling
+    max_obstacle_height: 2.0  # meters
+    min_obstacle_height: 0.05  # meters
+    
+    # Outlier rejection
+    outlier_rejection:
+      enabled: true
+      max_consecutive_failures: 3
+      
+  # Odometry integration
+  odometry:
+    # Pose tracking
+    update_on_motion: true
+    min_translation: 0.05  # meters - minimum movement to trigger update
+    min_rotation: 0.1  # radians - minimum rotation to trigger update
+    
+    # Drift compensation (if available)
+    use_correction: false  # Use external pose correction (e.g., from AMCL)
+    
+  # Filtering
+  filtering:
+    # Median filter for noise reduction
+    median_filter:
+      enabled: true
+      kernel_size: 3  # 3x3 kernel
+      
+    # Gaussian blur for smoothing
+    gaussian_blur:
+      enabled: false
+      sigma: 1.0
+      
+  # Visualization
+  visualization:
+    publish_map: true
+    publish_metadata: true
+    publish_updates: true  # Publish only updated regions
+    color_scheme: "default"  # Options: "default", "grayscale", "costmap"
+    
+  # Persistence
+  persistence:
+    save_on_shutdown: true
+    output_directory: "/tmp/mechdog_maps"
+    filename_prefix: "occupancy_grid"
+    format: "pgm"  # Options: "pgm", "png", "yaml"
+    
+  # Topics (hardware-agnostic)
+  topics:
+    scan_input: "/mechdog/scan"
+    odom_input: "/mechdog/odom"
+    map_output: "/mechdog/map"
+    map_metadata_output: "/mechdog/map_metadata"
+    map_updates_output: "/mechdog/map_updates"
+    
+  # Frames
+  frames:
+    global_frame: "map"
+    odom_frame: "odom"
+    robot_frame: "base_footprint"
+    sensor_frame: "lidar_link"
+    
+  # TF requirements
+  tf:
+    wait_for_transform: true
+    transform_timeout: 0.5  # seconds

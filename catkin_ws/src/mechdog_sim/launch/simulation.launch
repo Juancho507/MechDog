@@ -1,0 +1,112 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- =============================================== -->
+  <!-- MechDog Complete Simulation Launch File        -->
+  <!-- Loads Gazebo world, robot, noise injection,    -->
+  <!-- and metrics collection                         -->
+  <!-- =============================================== -->
+  
+  <!-- Arguments -->
+  <arg name="world" default="open_path_world"/>
+  <arg name="gui" default="true"/>
+  <arg name="rviz" default="true"/>
+  <arg name="noise_injection" default="true"/>
+  <arg name="metrics_collection" default="true"/>
+  <arg name="debug" default="false"/>
+  
+  <!-- Robot spawn position -->
+  <arg name="spawn_x" default="0.0"/>
+  <arg name="spawn_y" default="0.0"/>
+  <arg name="spawn_z" default="0.2"/>
+  <arg name="spawn_yaw" default="0.0"/>
+  
+  <!-- =============================================== -->
+  <!-- 1. Load Configuration Parameters               -->
+  <!-- =============================================== -->
+  
+  <!-- Load simulation configuration -->
+  <rosparam command="load" file="$(find mechdog_sim)/config/simulation.yaml"/>
+  
+  <!-- Load noise injection configuration -->
+  <group if="$(arg noise_injection)">
+    <rosparam command="load" file="$(find mechdog_sim)/config/noise_injection.yaml"/>
+  </group>
+  
+  <!-- Load sensor parameters -->
+  <rosparam command="load" file="$(find mechdog_sim)/config/sensor_params.yaml"/>
+  
+  <!-- =============================================== -->
+  <!-- 2. Launch Gazebo World and Robot               -->
+  <!-- =============================================== -->
+  
+  <include file="$(find mechdog_sim)/launch/gazebo_world.launch">
+    <arg name="world_name" value="$(arg world)"/>
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="x" value="$(arg spawn_x)"/>
+    <arg name="y" value="$(arg spawn_y)"/>
+    <arg name="z" value="$(arg spawn_z)"/>
+    <arg name="yaw" value="$(arg spawn_yaw)"/>
+  </include>
+  
+  <!-- =============================================== -->
+  <!-- 3. Sensor Simulation Layer                     -->
+  <!-- =============================================== -->
+  
+  <!-- Sensor simulator node -->
+  <node name="sensor_simulator" pkg="mechdog_sim" type="sensor_simulator_node.py" output="screen">
+    <rosparam command="load" file="$(find mechdog_sim)/config/sensor_params.yaml"/>
+  </node>
+  
+  <!-- Noise injection node (Sim-to-Real gap mitigation) -->
+  <group if="$(arg noise_injection)">
+    <node name="noise_injector" pkg="mechdog_sim" type="noise_injector_node.py" output="screen">
+      <rosparam command="load" file="$(find mechdog_sim)/config/noise_injection.yaml"/>
+    </node>
+  </group>
+  
+  <!-- =============================================== -->
+  <!-- 4. Metrics Collection                          -->
+  <!-- =============================================== -->
+  
+  <group if="$(arg metrics_collection)">
+    <node name="metrics_collector" pkg="mechdog_sim" type="metrics_collector_node.py" output="screen">
+      <param name="output_dir" value="$(find mechdog_sim)/../../metrics_output"/>
+    </node>
+  </group>
+  
+  <!-- =============================================== -->
+  <!-- 5. Visualization (RViz)                        -->
+  <!-- =============================================== -->
+  
+  <group if="$(arg rviz)">
+    <node name="rviz" pkg="rviz" type="rviz" 
+          args="-d $(find mechdog_description)/launch/rviz.rviz"
+          required="false"/>
+  </group>
+  
+  <!-- =============================================== -->
+  <!-- 6. Diagnostics and Monitoring                  -->
+  <!-- =============================================== -->
+  
+  <!-- ROS diagnostics aggregator (optional) -->
+  <!-- <node name="diagnostic_aggregator" pkg="diagnostic_aggregator" type="aggregator_node"/> -->
+  
+  <!-- TF tree monitoring -->
+  <node if="$(arg debug)" name="tf_monitor" pkg="tf" type="tf_monitor" output="screen"/>
+  
+  <!-- Topic monitoring -->
+  <node if="$(arg debug)" name="rostopic_hz_scan" pkg="rostopic" type="rostopic" 
+        args="hz /mechdog/scan" output="screen"/>
+  
+  <node if="$(arg debug)" name="rostopic_hz_odom" pkg="rostopic" type="rostopic" 
+        args="hz /mechdog/odom" output="screen"/>
+  
+  <!-- =============================================== -->
+  <!-- Startup Information                            -->
+  <!-- =============================================== -->
+  
+  <node name="simulation_info" pkg="rostopic" type="rostopic" 
+        args="pub -1 /simulation/status std_msgs/String 'MechDog Simulation Active'" 
+        output="screen"/>
+  
+</launch>

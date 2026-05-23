@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Occupancy Grid Mapping Only -->
+  <!-- Portable - works on simulation and real hardware -->
+  
+  <arg name="environment" default="simulation"/>
+  
+  <!-- Load configuration -->
+  <rosparam command="load" file="$(find mechdog_navigation)/config/occupancy_grid.yaml"/>
+  <rosparam command="load" file="$(find mechdog_navigation)/config/environments/$(arg environment).yaml"/>
+  
+  <!-- Launch occupancy grid mapper -->
+  <node name="occupancy_grid_mapper" pkg="mechdog_navigation" type="occupancy_grid_node.py" output="screen">
+    <rosparam command="load" file="$(find mechdog_navigation)/config/occupancy_grid.yaml"/>
+  </node>
+  
+</launch>

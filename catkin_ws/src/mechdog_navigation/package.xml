@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>mechdog_navigation</name>
+  <version>1.0.0</version>
+  <description>
+    MechDog Navigation Package (CORE) - 100% portable navigation stack.
+    Includes global planning (BFS, A*), local planning (DWA), safe learning,
+    and occupancy grid mapping. NO simulation dependencies - works identically
+    on simulated and real hardware.
+  </description>
+
+  <maintainer email="mechdog@example.com">MechDog Team</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- Core ROS dependencies (portable) -->
+  <depend>rospy</depend>
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>tf</depend>
+  <depend>tf2_ros</depend>
+
+  <!-- Navigation dependencies -->
+  <depend>move_base_msgs</depend>
+  <depend>actionlib</depend>
+  <depend>actionlib_msgs</depend>
+
+  <!-- Visualization (optional, portable) -->
+  <depend>visualization_msgs</depend>
+
+  <!-- Python dependencies -->
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
+
+  <!-- Launch dependencies -->
+  <exec_depend>roslaunch</exec_depend>
+
+  <!-- NOTE: NO gazebo, pybullet, or mechdog_sim dependencies -->
+  <!-- This package is 100% portable and hardware-agnostic -->
+
+  <export>
+    <!-- No Gazebo exports -->
+  </export>
+</package>

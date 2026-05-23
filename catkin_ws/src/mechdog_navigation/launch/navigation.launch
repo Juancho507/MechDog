@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- ========================================================================= -->
+  <!-- MechDog Complete Navigation Stack Launch File                             -->
+  <!-- 100% PORTABLE - No simulation dependencies                                -->
+  <!-- Works identically on simulated and real hardware                          -->
+  <!-- ========================================================================= -->
+  
+  <!-- Arguments -->
+  <arg name="environment" default="simulation"/>  <!-- Options: simulation, real_hardware -->
+  <arg name="enable_mapping" default="true"/>
+  <arg name="enable_global_planner" default="true"/>
+  <arg name="enable_local_planner" default="true"/>
+  <arg name="enable_safe_learning" default="true"/>
+  <arg name="enable_manager" default="true"/>
+  
+  <!-- ========================================================================= -->
+  <!-- 1. Load Configuration Parameters                                          -->
+  <!-- ========================================================================= -->
+  
+  <!-- Load general navigation config -->
+  <rosparam command="load" file="$(find mechdog_navigation)/config/navigation.yaml"/>
+  
+  <!-- Load environment-specific overrides -->
+  <rosparam command="load" file="$(find mechdog_navigation)/config/environments/$(arg environment).yaml"/>
+  
+  <!-- ========================================================================= -->
+  <!-- 2. Occupancy Grid Mapping                                                 -->
+  <!-- ========================================================================= -->
+  
+  <group if="$(arg enable_mapping)">
+    <rosparam command="load" file="$(find mechdog_navigation)/config/occupancy_grid.yaml"/>
+    
+    <node name="occupancy_grid_mapper" pkg="mechdog_navigation" type="occupancy_grid_node.py" output="screen">
+      <rosparam command="load" file="$(find mechdog_navigation)/config/occupancy_grid.yaml"/>
+    </node>
+  </group>
+  
+  <!-- ========================================================================= -->
+  <!-- 3. Global Path Planning                                                   -->
+  <!-- ========================================================================= -->
+  
+  <group if="$(arg enable_global_planner)">
+    <rosparam command="load" file="$(find mechdog_navigation)/config/global_planner.yaml"/>
+    
+    <node name="global_planner" pkg="mechdog_navigation" type="global_planner_node.py" output="screen">
+      <rosparam command="load" file="$(find mechdog_navigation)/config/global_planner.yaml"/>
+    </node>
+  </group>
+  
+  <!-- ========================================================================= -->
+  <!-- 4. Local Path Planning (DWA)                                              -->
+  <!-- ========================================================================= -->
+  
+  <group if="$(arg enable_local_planner)">
+    <rosparam command="load" file="$(find mechdog_navigation)/config/local_planner.yaml"/>
+    
+    <node name="local_planner" pkg="mechdog_navigation" type="local_planner_node.py" output="screen">
+      <rosparam command="load" file="$(find mechdog_navigation)/config/local_planner.yaml"/>
+    </node>
+  </group>
+  
+  <!-- ========================================================================= -->
+  <!-- 5. Safe Learning (Safety Layer)                                           -->
+  <!-- ========================================================================= -->
+  
+  <group if="$(arg enable_safe_learning)">
+    <rosparam command="load" file="$(find mechdog_navigation)/config/safe_learning.yaml"/>
+    
+    <node name="safe_learning" pkg="mechdog_navigation" type="safe_learning_node.py" output="screen">
+      <rosparam command="load" file="$(find mechdog_navigation)/config/safe_learning.yaml"/>
+    </node>
+  </group>
+  
+  <!-- ========================================================================= -->
+  <!-- 6. Navigation Manager (State Machine)                                     -->
+  <!-- ========================================================================= -->
+  
+  <group if="$(arg enable_manager)">
+    <node name="navigation_manager" pkg="mechdog_navigation" type="navigation_manager_node.py" output="screen">
+      <rosparam command="load" file="$(find mechdog_navigation)/config/navigation.yaml"/>
+    </node>
+  </group>
+  
+  <!-- ========================================================================= -->
+  <!-- Startup Info                                                              -->
+  <!-- ========================================================================= -->
+  
+  <node name="navigation_startup_info" pkg="rostopic" type="rostopic" 
+        args="pub -1 /mechdog/navigation/startup std_msgs/String 'MechDog Navigation Active - Environment: $(arg environment)'" 
+        output="screen"/>
+  
+</launch>

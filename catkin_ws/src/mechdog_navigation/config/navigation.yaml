@@ -1,0 +1,170 @@
+# MechDog Navigation System - General Configuration
+# Hardware-agnostic navigation parameters
+
+navigation:
+  # System mode
+  mode: "autonomous"  # Options: "autonomous", "manual", "assisted"
+  
+  # Navigation stack components
+  components:
+    global_planner: true
+    local_planner: true
+    safe_learning: true
+    occupancy_grid: true
+    recovery_behaviors: true
+    
+  # Coordinate frames (hardware-agnostic)
+  frames:
+    map: "map"  # Global fixed frame
+    odom: "odom"  # Odometry frame
+    base: "base_footprint"  # Robot base frame
+    lidar: "lidar_link"  # Sensor frame
+    
+  # Robot footprint (for collision checking)
+  footprint:
+    type: "rectangular"  # Options: "rectangular", "circular", "polygon"
+    # Rectangular footprint
+    length: 0.5  # meters
+    width: 0.3  # meters
+    # Circular footprint (alternative)
+    # radius: 0.25  # meters
+    # Polygon footprint (alternative)
+    # points: [[x1, y1], [x2, y2], ...]
+    
+  # Robot kinematic constraints
+  kinematics:
+    type: "differential_drive"  # Options: "differential_drive", "omnidirectional"
+    max_velocity: 1.0  # m/s
+    max_angular_velocity: 1.5  # rad/s
+    max_acceleration: 2.0  # m/s^2
+    max_angular_acceleration: 3.0  # rad/s^2
+    
+  # Navigation goals
+  goal_handling:
+    goal_tolerance: 0.1  # meters
+    yaw_tolerance: 0.1  # radians
+    timeout: 60.0  # seconds - maximum time to reach goal
+    
+  # Planning cycle
+  planning:
+    # Global planning
+    global_planning_frequency: 1.0  # Hz
+    global_replan_distance: 0.5  # meters - trigger replanning
+    
+    # Local planning
+    local_planning_frequency: 20.0  # Hz
+    controller_patience: 5.0  # seconds
+    
+  # Recovery behaviors (when stuck)
+  recovery:
+    enabled: true
+    behaviors:
+      - name: "conservative_reset"
+        type: "clear_costmap"
+        frequency: 0.5  # Hz
+      - name: "rotate_recovery"
+        type: "rotate"
+        duration: 3.0  # seconds
+      - name: "aggressive_reset"
+        type: "clear_costmap"
+        aggressive: true
+      - name: "backup_recovery"
+        type: "backup"
+        distance: 0.5  # meters
+    max_recovery_attempts: 5
+    
+  # Obstacle handling
+  obstacles:
+    # Static obstacles
+    static_map: false  # Use pre-loaded static map
+    
+    # Dynamic obstacles
+    dynamic_tracking: true
+    obstacle_timeout: 2.0  # seconds
+    
+    # Inflation
+    inflation_radius: 0.3  # meters
+    cost_scaling_factor: 10.0
+    
+  # Path execution
+  path_execution:
+    # Waypoint following
+    waypoint_tolerance: 0.15  # meters
+    waypoint_timeout: 5.0  # seconds
+    
+    # Path tracking
+    max_path_deviation: 0.5  # meters - abort if exceeded
+    path_update_rate: 10.0  # Hz
+    
+  # State machine
+  state_machine:
+    initial_state: "idle"
+    states:
+      - "idle"  # Waiting for goal
+      - "planning"  # Computing path
+      - "moving"  # Executing path
+      - "recovery"  # Stuck, trying recovery
+      - "paused"  # Paused by user
+      - "error"  # Error state
+      - "goal_reached"  # Successfully reached goal
+    transition_timeout: 1.0  # seconds
+    
+  # Monitoring and diagnostics
+  monitoring:
+    publish_diagnostics: true
+    diagnostics_rate: 1.0  # Hz
+    
+    # Performance metrics
+    track_metrics: true
+    metrics:
+      - "path_length"
+      - "execution_time"
+      - "recovery_count"
+      - "distance_traveled"
+      - "average_velocity"
+      
+  # Logging
+  logging:
+    level: "info"  # Options: "debug", "info", "warn", "error"
+    log_path_plans: true
+    log_recovery_events: true
+    log_collisions: true
+    output_directory: "/tmp/mechdog_navigation_logs"
+    
+  # Topics (hardware-agnostic interface)
+  topics:
+    # Inputs
+    scan: "/mechdog/scan"
+    odom: "/mechdog/odom"
+    goal: "/mechdog/goal"
+    
+    # Outputs
+    cmd_vel: "/cmd_vel"
+    global_plan: "/mechdog/global_plan"
+    local_plan: "/mechdog/local_plan"
+    map: "/mechdog/map"
+    
+    # Status
+    status: "/mechdog/navigation_status"
+    diagnostics: "/mechdog/diagnostics"
+    
+  # Services
+  services:
+    clear_costmap: "/mechdog/clear_costmap"
+    replan: "/mechdog/replan"
+    pause: "/mechdog/pause"
+    resume: "/mechdog/resume"
+    cancel_goal: "/mechdog/cancel_goal"
+    
+  # Action servers
+  actions:
+    move_base: "/mechdog/move_base"
+    
+  # Parameters that can be updated at runtime
+  dynamic_reconfigure:
+    enabled: true
+    parameters:
+      - "max_velocity"
+      - "goal_tolerance"
+      - "inflation_radius"
+      - "planning_frequency"

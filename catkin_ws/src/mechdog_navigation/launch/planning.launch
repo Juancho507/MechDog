@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Global and Local Planning Only -->
+  <!-- Portable - works on simulation and real hardware -->
+  
+  <arg name="environment" default="simulation"/>
+  <arg name="enable_global" default="true"/>
+  <arg name="enable_local" default="true"/>
+  
+  <!-- Load configurations -->
+  <rosparam command="load" file="$(find mechdog_navigation)/config/navigation.yaml"/>
+  <rosparam command="load" file="$(find mechdog_navigation)/config/environments/$(arg environment).yaml"/>
+  
+  <!-- Global Planner -->
+  <group if="$(arg enable_global)">
+    <rosparam command="load" file="$(find mechdog_navigation)/config/global_planner.yaml"/>
+    
+    <node name="global_planner" pkg="mechdog_navigation" type="global_planner_node.py" output="screen">
+      <rosparam command="load" file="$(find mechdog_navigation)/config/global_planner.yaml"/>
+    </node>
+  </group>
+  
+  <!-- Local Planner (DWA) -->
+  <group if="$(arg enable_local)">
+    <rosparam command="load" file="$(find mechdog_navigation)/config/local_planner.yaml"/>
+    
+    <node name="local_planner" pkg="mechdog_navigation" type="local_planner_node.py" output="screen">
+      <rosparam command="load" file="$(find mechdog_navigation)/config/local_planner.yaml"/>
+    </node>
+  </group>
+  
+</launch>

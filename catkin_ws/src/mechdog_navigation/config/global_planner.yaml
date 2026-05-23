@@ -1,0 +1,57 @@
+# Global Planner Configuration
+# Discrete path planning algorithms (BFS, A*) for MechDog
+
+global_planner:
+  # Algorithm selection
+  algorithm: "astar"  # Options: "bfs", "astar", "dijkstra"
+  
+  # Planning parameters
+  planning:
+    cell_size: 0.1  # meters (grid resolution)
+    max_planning_time: 5.0  # seconds
+    replan_distance: 0.5  # meters - trigger replanning when deviation > this
+    replan_on_obstacle: true  # Replan if new obstacles detected
+    
+  # A* specific parameters
+  astar:
+    heuristic: "manhattan"  # Options: "manhattan", "euclidean", "octile"
+    heuristic_weight: 1.0  # Weight for heuristic (1.0 = A*, 0.0 = Dijkstra, >1.0 = weighted A*)
+    allow_diagonal: false  # Allow diagonal movement
+    
+  # BFS specific parameters
+  bfs:
+    max_iterations: 10000  # Maximum iterations before giving up
+    
+  # Goal tolerance
+  goal:
+    xy_tolerance: 0.2  # meters
+    yaw_tolerance: 0.1  # radians (~5.7 degrees)
+    
+  # Path smoothing
+  smoothing:
+    enabled: true
+    iterations: 3
+    weight_data: 0.5  # How much to follow original path
+    weight_smooth: 0.3  # How much to smooth
+    
+  # Obstacle inflation
+  inflation:
+    radius: 0.3  # meters - inflate obstacles by this amount
+    cost_factor: 10.0  # Cost multiplier for inflated cells
+    
+  # Visualization
+  visualization:
+    publish_plan: true
+    publish_explored: true  # Publish explored cells (for debugging)
+    marker_lifetime: 10.0  # seconds
+    
+  # Topics (hardware-agnostic)
+  topics:
+    map_input: "/mechdog/map"  # OccupancyGrid input
+    goal_input: "/mechdog/goal"  # Goal pose
+    plan_output: "/mechdog/global_plan"  # Computed path
+    
+  # Frame IDs
+  frames:
+    global_frame: "map"
+    robot_frame: "base_footprint"

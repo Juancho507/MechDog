@@ -1,0 +1,113 @@
+# Safe Learning Configuration
+# Active safety system with dynamic collision polygon and emergency braking
+
+safe_learning:
+  # Enable/disable safety system
+  enabled: true
+  
+  # Dynamic safety polygon
+  collision_polygon:
+    # Base polygon dimensions (at zero velocity)
+    base_width: 0.4  # meters - robot width + safety margin
+    base_length: 0.6  # meters - robot length + safety margin
+    
+    # Dynamic expansion based on velocity
+    velocity_expansion:
+      enabled: true
+      linear_factor: 0.5  # Expand polygon by velocity * factor (meters per m/s)
+      angular_factor: 0.3  # Additional expansion for rotation (meters per rad/s)
+      
+    # Maximum polygon dimensions
+    max_width: 1.0  # meters
+    max_length: 2.0  # meters
+    
+  # Braking distance calculation
+  braking:
+    # Physical parameters
+    max_deceleration: 2.5  # m/s^2 - maximum safe braking
+    reaction_time: 0.1  # seconds - system reaction delay
+    safety_factor: 1.5  # Multiply calculated braking distance by this
+    
+    # Emergency stop thresholds
+    critical_distance: 0.15  # meters - immediate stop if obstacle closer
+    warning_distance: 0.3  # meters - start slowing down
+    
+  # Emergency behaviors
+  emergency:
+    # Stop behavior
+    stop:
+      deceleration_rate: 3.0  # m/s^2
+      hold_time: 1.0  # seconds - how long to hold after stopping
+      
+    # Spin-in-place behavior (when path blocked)
+    spin:
+      enabled: true
+      angular_velocity: 0.5  # rad/s
+      scan_sectors: 8  # Number of sectors to evaluate
+      min_clear_angle: 1.57  # radians (~90 degrees) minimum clear sector
+      
+    # Dead-end detection and recovery
+    deadend:
+      detection_threshold: 3  # Number of failed attempts before declaring dead-end
+      recovery_distance: 1.0  # meters - backup distance
+      max_recovery_attempts: 3
+      
+  # Velocity regulation
+  velocity_control:
+    # Velocity limits based on proximity
+    proximity_scaling:
+      enabled: true
+      safe_distance: 1.0  # meters - full speed allowed
+      min_distance: 0.3  # meters - minimum speed
+      min_velocity_ratio: 0.2  # Minimum velocity as fraction of max
+      
+    # Smooth velocity transitions
+    smoothing:
+      acceleration_limit: 1.5  # m/s^2
+      jerk_limit: 5.0  # m/s^3 (rate of change of acceleration)
+      
+  # Obstacle monitoring
+  obstacles:
+    # Sensor configuration
+    scan_range: 3.0  # meters - maximum range to consider
+    min_obstacle_points: 3  # Minimum LIDAR points to confirm obstacle
+    
+    # Obstacle tracking
+    tracking:
+      enabled: true
+      timeout: 2.0  # seconds - forget obstacle if not seen
+      
+    # Free space requirements
+    free_space:
+      min_width: 0.5  # meters - minimum corridor width
+      min_length: 1.0  # meters - minimum lookahead distance
+      
+  # Safe waypoint selection
+  waypoints:
+    safety_check: true  # Verify waypoints are safe before accepting
+    min_clearance: 0.4  # meters - minimum clearance from obstacles
+    reachability_check: true  # Verify waypoint is kinematically reachable
+    
+  # Metrics and logging
+  metrics:
+    log_emergency_events: true
+    publish_safety_status: true
+    status_rate: 10.0  # Hz
+    
+  # Topics (hardware-agnostic)
+  topics:
+    cmd_vel_input: "/mechdog/cmd_vel_raw"  # Input from local planner
+    cmd_vel_output: "/cmd_vel"  # Filtered output to robot
+    scan_input: "/mechdog/scan"
+    odom_input: "/mechdog/odom"
+    emergency_stop_output: "/mechdog/emergency_stop"
+    safety_status_output: "/mechdog/safety_status"
+    safety_polygon_output: "/mechdog/safety_polygon"  # Visualization
+    
+  # Frames
+  frames:
+    robot_frame: "base_footprint"
+    sensor_frame: "lidar_link"
+    
+  # Update rate
+  control_frequency: 50.0  # Hz (high frequency for safety)

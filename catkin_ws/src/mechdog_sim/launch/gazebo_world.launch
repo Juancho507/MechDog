@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Arguments -->
+  <arg name="world_name" default="open_path_world"/>
+  <arg name="gui" default="true"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+  <arg name="verbose" default="false"/>
+  <arg name="paused" default="false"/>
+  <arg name="use_sim_time" default="true"/>
+  
+  <!-- World file path -->
+  <arg name="world_file" default="$(find mechdog_sim)/worlds/$(arg world_name).world"/>
+  
+  <!-- Set use_sim_time parameter -->
+  <param name="/use_sim_time" value="$(arg use_sim_time)"/>
+  
+  <!-- Start Gazebo server -->
+  <node name="gazebo" pkg="gazebo_ros" type="gzserver" 
+        args="$(arg world_file) 
+              -e ode 
+              --verbose $(arg verbose)"
+        output="screen"
+        respawn="false">
+    <param name="publish_frequency" value="100.0"/>
+  </node>
+  
+  <!-- Start Gazebo client (GUI) -->
+  <group if="$(arg gui)">
+    <node name="gazebo_gui" pkg="gazebo_ros" type="gzclient" 
+          output="screen"
+          respawn="false"/>
+  </group>
+  
+  <!-- Spawn MechDog robot -->
+  <arg name="x" default="0.0"/>
+  <arg name="y" default="0.0"/>
+  <arg name="z" default="0.2"/>
+  <arg name="yaw" default="0.0"/>
+  
+  <!-- Load robot description -->
+  <param name="robot_description" 
+         command="$(find xacro)/xacro $(find mechdog_description)/urdf/mechdog.urdf.xacro simulation:=true"/>
+  
+  <!-- Spawn robot in Gazebo -->
+  <node name="spawn_mechdog" pkg="gazebo_ros" type="spawn_model"
+        args="-urdf 
+              -param robot_description 
+              -model mechdog 
+              -x $(arg x) 
+              -y $(arg y) 
+              -z $(arg z) 
+              -Y $(arg yaw)"
+        output="screen"
+        respawn="false"/>
+  
+  <!-- Robot state publisher -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
+    <param name="publish_frequency" value="50.0"/>
+  </node>
+  
+  <!-- Joint state publisher (for fixed joints) -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <param name="use_gui" value="false"/>
+  </node>
+  
+  <!-- Static transform publishers for sensors (if needed) -->
+  <node pkg="tf" type="static_transform_publisher" name="base_to_laser"
+        args="0 0 0 0 0 0 base_link lidar_link 100"/>
+        
+</launch>

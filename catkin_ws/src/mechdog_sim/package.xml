@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>mechdog_sim</name>
+  <version>1.0.0</version>
+  <description>
+    MechDog Simulation Layer - Provides Gazebo-based simulation environment
+    with noise injection and sensor modeling for Sim-to-Real validation
+  </description>
+
+  <maintainer email="mechdog@example.com">MechDog Team</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- Core ROS dependencies -->
+  <depend>rospy</depend>
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>tf</depend>
+
+  <!-- Gazebo dependencies -->
+  <depend>gazebo_ros</depend>
+  <depend>gazebo_plugins</depend>
+  <depend>gazebo_msgs</depend>
+
+  <!-- Robot description -->
+  <depend>mechdog_description</depend>
+
+  <!-- Launch dependencies -->
+  <exec_depend>roslaunch</exec_depend>
+
+  <export>
+    <gazebo_ros gazebo_model_path="${prefix}/models"/>
+    <gazebo_ros gazebo_media_path="${prefix}/worlds"/>
+  </export>
+</package>
