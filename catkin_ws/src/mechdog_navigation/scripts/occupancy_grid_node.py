@@ -153,35 +153,49 @@ class OccupancyGridMapper:
         self.integrate_scan(msg, self.current_pose)
         
     def integrate_scan(self, scan, pose):
-        """Integrate laser scan into occupancy grid"""
-        # Get robot position in map coordinates
+        """Integrate laser scan into occupancy grid.
+        Defensive-NaN version: guards every possible NaN source before any
+        arithmetic so ValueError / silent corruption never reaches world_to_map.
+        """
+        # --- Guard 1: robot pose must be finite ---------------------------------
         robot_x_world = pose.position.x
         robot_y_world = pose.position.y
+        if not (math.isfinite(robot_x_world) and math.isfinite(robot_y_world)):
+            rospy.logwarn_throttle(5.0, "Odometry pose contains NaN/Inf – skipping scan")
+            return
+
         robot_yaw = self.get_yaw_from_quaternion(pose.orientation)
-        
+        if not math.isfinite(robot_yaw):
+            rospy.logwarn_throttle(5.0, "Odometry yaw is NaN/Inf – skipping scan")
+            return
+
         robot_x_map, robot_y_map = self.world_to_map(robot_x_world, robot_y_world)
-        
         if not self.is_valid_cell(robot_x_map, robot_y_map):
             return
-            
-        # Process each ray
+
+        # --- Guard 2: ray iteration with full NaN protection -------------------
         angle = scan.angle_min
+        _max_range = min(scan.range_max, self.param_max_range)
+        _min_cutoff = scan.range_min + 0.06  # excludes self-hits (robot legs ~0.13 m)
+
         for r in scan.ranges:
-            # Check if range is valid
-            if r < self.param_min_range or r > min(scan.range_max, self.param_max_range):
+            # NaN passes < in Python; isfinite catches NaN, Inf, and -Inf
+            if not math.isfinite(r) or r < _min_cutoff or r > _max_range:
                 angle += scan.angle_increment
                 continue
-                
-            # Calculate end point of ray
+
             ray_angle = robot_yaw + angle
             end_x_world = robot_x_world + r * math.cos(ray_angle)
             end_y_world = robot_y_world + r * math.sin(ray_angle)
-            
+
+            # Guard 3: result must be finite before calling world_to_map
+            if not (math.isfinite(end_x_world) and math.isfinite(end_y_world)):
+                angle += scan.angle_increment
+                continue
+
             end_x_map, end_y_map = self.world_to_map(end_x_world, end_y_world)
-            
-            # Ray trace and update cells
             self.ray_trace(robot_x_map, robot_y_map, end_x_map, end_y_map)
-            
+
             angle += scan.angle_increment
             
     def ray_trace(self, x0, y0, x1, y1):
@@ -262,6 +276,8 @@ class OccupancyGridMapper:
         
     def world_to_map(self, x_world, y_world):
         """Convert world coordinates to map coordinates"""
+        if not (math.isfinite(x_world) and math.isfinite(y_world)):
+            return -1, -1  # is_valid_cell will reject this
         x_map = int((x_world - self.param_origin_x) / self.param_resolution)
         y_map = int((y_world - self.param_origin_y) / self.param_resolution)
         return x_map, y_map

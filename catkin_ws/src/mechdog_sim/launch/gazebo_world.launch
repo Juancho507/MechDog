@@ -42,17 +42,9 @@
   <param name="robot_description" 
          command="$(find xacro)/xacro $(find mechdog_description)/urdf/mechdog.urdf.xacro simulation:=true"/>
   
-  <!-- Spawn robot in Gazebo -->
-  <node name="spawn_mechdog" pkg="gazebo_ros" type="spawn_model"
-        args="-urdf 
-              -param robot_description 
-              -model mechdog 
-              -x $(arg x) 
-              -y $(arg y) 
-              -z $(arg z) 
-              -Y $(arg yaw)"
-        output="screen"
-        respawn="false"/>
+  <!-- Spawn robot: uses Python node that deletes any existing model first -->
+  <node name="spawn_mechdog" pkg="mechdog_sim" type="spawn_robot.py"
+        output="screen" respawn="false"/>
   
   <!-- Robot state publisher -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">

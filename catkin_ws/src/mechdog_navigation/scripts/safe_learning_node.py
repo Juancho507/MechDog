@@ -222,10 +222,14 @@ class SafeLearningController:
             list(self.current_scan.ranges[-front_sector:])
         )
         
-        # Filter valid ranges
+        # Filter valid ranges.
+        # The LIDAR sits inside the robot body; forward-facing rays hit the front
+        # legs at ~0.13-0.15 m.  Use a 6 cm buffer above range_min (0.10 m) so
+        # that self-hits (≤ 0.16 m) are excluded before safety evaluation.
+        _range_min_cutoff = self.current_scan.range_min + 0.06
         valid_ranges = [
             r for r in front_ranges 
-            if self.current_scan.range_min <= r <= min(self.current_scan.range_max, self.param_scan_range)
+            if _range_min_cutoff < r <= min(self.current_scan.range_max, self.param_scan_range)
         ]
         
         if len(valid_ranges) < self.param_min_obstacle_points:

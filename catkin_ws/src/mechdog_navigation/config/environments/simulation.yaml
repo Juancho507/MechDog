@@ -28,10 +28,12 @@ environment:
     global_replan_distance: 0.3  # meters (replan more frequently)
     local_planning_frequency: 20.0  # Hz
     
-  # Safety (can be slightly relaxed for development)
+  # Safety distances account for the robot's own leg geometry.
+  # The front legs appear at ~0.13-0.15m in the LIDAR scan, so
+  # critical_distance must be below that to avoid self-triggered stops.
   safety:
-    critical_distance: 0.12  # meters (slightly less conservative)
-    warning_distance: 0.25  # meters
+    critical_distance: 0.20  # meters — robot footprint radius ~0.18m
+    warning_distance: 0.35  # meters
     
   # Computational resources
   compute:

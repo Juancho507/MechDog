@@ -86,8 +86,9 @@
   <!-- Startup Info                                                              -->
   <!-- ========================================================================= -->
   
-  <node name="navigation_startup_info" pkg="rostopic" type="rostopic" 
-        args="pub -1 /mechdog/navigation/startup std_msgs/String 'MechDog Navigation Active - Environment: $(arg environment)'" 
+  <!-- Startup info: use data-format {} to avoid shell word-splitting on spaces -->
+  <node name="navigation_startup_info" pkg="rostopic" type="rostopic"
+        args="pub -1 /mechdog/navigation/startup std_msgs/String '{data: navigation_active_$(arg environment)}'"
         output="screen"/>
   
 </launch>

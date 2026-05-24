@@ -59,6 +59,7 @@ catkin_install_python(PROGRAMS
   scripts/noise_injector_node.py
   scripts/sensor_simulator_node.py
   scripts/metrics_collector_node.py
+  scripts/spawn_robot.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

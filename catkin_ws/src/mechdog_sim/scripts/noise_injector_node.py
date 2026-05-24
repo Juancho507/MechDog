@@ -5,6 +5,7 @@ Subscribes to clean sensor data from Gazebo and publishes noisy data
 to emulate real-world sensor imperfections (Sim-to-Real gap mitigation)
 """
 
+import math
 import rospy
 import numpy as np
 from sensor_msgs.msg import LaserScan
@@ -82,11 +83,16 @@ class NoiseInjector:
         
     def odom_callback(self, msg):
         """Process odometry with noise and drift injection"""
-        if not self.odom_enabled:
-            self.odom_pub.publish(msg)
-            return
-            
         noisy_odom = copy.deepcopy(msg)
+        
+        # Normalise frame_id: the P3D Gazebo plugin publishes with frame_id="world"
+        # but the navigation stack (and sensor_params.yaml) expects frame_id="odom".
+        noisy_odom.header.frame_id = 'odom'
+        noisy_odom.child_frame_id  = 'base_footprint'
+        
+        if not self.odom_enabled:
+            self.odom_pub.publish(noisy_odom)
+            return
         
         # Calculate time delta for drift accumulation
         current_time = rospy.Time.now()
@@ -102,12 +108,15 @@ class NoiseInjector:
         noisy_odom.pose.pose.position.x += np.random.normal(0, self.odom_pos_stddev) + self.odom_drift['x']
         noisy_odom.pose.pose.position.y += np.random.normal(0, self.odom_pos_stddev) + self.odom_drift['y']
         
-        # Add noise to orientation (quaternion - simplified)
-        # In production, should properly handle quaternion noise
+        # Add noise to orientation (yaw-only approximation for planar robot).
+        # Clamp z to [-1, 1] before computing w to prevent sqrt(negative) = NaN
+        # when accumulated drift pushes |z| > 1 over long runs.
         theta_noise = np.random.normal(0, self.odom_theta_stddev) + self.odom_drift['theta']
-        # Simple approximation for small angles
-        noisy_odom.pose.pose.orientation.z += theta_noise * 0.5
-        noisy_odom.pose.pose.orientation.w = np.sqrt(1 - noisy_odom.pose.pose.orientation.z**2)
+        z_new = noisy_odom.pose.pose.orientation.z + theta_noise * 0.5
+        z_new = float(np.clip(z_new, -1.0, 1.0))        # guard: |z| <= 1
+        w_new = math.sqrt(max(0.0, 1.0 - z_new ** 2))  # always real
+        noisy_odom.pose.pose.orientation.z = z_new
+        noisy_odom.pose.pose.orientation.w = w_new
         
         self.odom_pub.publish(noisy_odom)
         

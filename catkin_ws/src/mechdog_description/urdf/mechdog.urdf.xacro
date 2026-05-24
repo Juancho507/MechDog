@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <robot name="mechdog" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="simulation" default="false"/>
 
   <!-- Robot Properties -->
   <xacro:property name="robot_length" value="0.5"/>
@@ -7,8 +8,9 @@
   <xacro:property name="robot_height" value="0.2"/>
   <xacro:property name="robot_mass" value="15.0"/>
   
-  <!-- Sensor Offsets -->
-  <xacro:property name="lidar_offset_x" value="0.2"/>
+  <!-- Sensor Offsets — LIDAR placed just past the front legs (robot_length/2 = 0.25 m)
+       so that forward-facing rays do not hit the robot's own legs. -->
+  <xacro:property name="lidar_offset_x" value="0.28"/>
   <xacro:property name="lidar_offset_z" value="0.15"/>
   
   <!-- Velocity Limits -->
@@ -206,11 +208,26 @@
   </joint>
 
   <!-- Gazebo Plugins (conditioned on simulation) -->
-  <xacro:unless eval="$(arg simulation)">
+  <xacro:unless value="$(arg simulation)">
     <!-- Empty tag when not in simulation -->
   </xacro:unless>
   
-  <xacro:if eval="$(arg simulation)">
+  <xacro:if value="$(arg simulation)">
+    <!-- Ground-truth Odometry Plugin (P3D)
+         Publishes the robot's pose from Gazebo directly to /gazebo/odom_clean.
+         This is the source of truth consumed by noise_injector → /mechdog/odom. -->
+    <gazebo>
+      <plugin name="gazebo_ros_ground_truth_odom" filename="libgazebo_ros_p3d.so">
+        <bodyName>base_link</bodyName>
+        <topicName>/gazebo/odom_clean</topicName>
+        <frameName>world</frameName>
+        <xyzOffsets>0 0 0</xyzOffsets>
+        <rpyOffsets>0 0 0</rpyOffsets>
+        <updateRate>50.0</updateRate>
+        <gaussianNoise>0.0</gaussianNoise>
+      </plugin>
+    </gazebo>
+
     <!-- LIDAR Sensor Plugin -->
     <gazebo reference="lidar_link">
       <material>Gazebo/Black</material>

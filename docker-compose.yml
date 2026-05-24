@@ -1,34 +1,165 @@
+version: '3.8'
+
 services:
 
-  # ── ALGORITMOS (headless, sin GUI) ──────────────────────────────────
-  # Uso: docker compose run solver bfs 42
+  # ========================================================================
+  # ROS NOETIC SERVICES (Multi-Stage Build Architecture)
+  # ========================================================================
 
+  # Base ROS service - Interactive development (builder stage, no GUI)
+  mechdog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - ./catkin_ws:/app/catkin_ws
+    environment:
+      - ROS_HOSTNAME=localhost
+      - ROS_MASTER_URI=http://localhost:11311
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
+    network_mode: host
+
+  # Web-based visualization service (Gazebo + RViz via noVNC)
+  # Access: http://localhost:6080/vnc.html
+  mechdog_viz:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: visualizer
+    volumes:
+      - ./catkin_ws:/app/catkin_ws
+    environment:
+      - DISPLAY=:0
+      - RESOLUTION=1920x1080
+      - ROS_HOSTNAME=mechdog_viz
+      - ROS_MASTER_URI=http://mechdog_viz:11311
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
+    ports:
+      - "6080:6080"       # noVNC web access: http://localhost:6080/vnc.html
+      - "11311:11311"     # ROS master (roscore)
+    entrypoint: ["/start_vnc.sh"]
+    command: bash
+
+  # ROS Master (roscore) - builder stage
+  roscore:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    environment:
+      - ROS_HOSTNAME=roscore
+      - ROS_MASTER_URI=http://localhost:11311
+    network_mode: host
+    command: roscore
+
+  # Gazebo Simulation - builder stage
+  simulation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - ./catkin_ws:/app/catkin_ws
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - ROS_HOSTNAME=simulation
+      - ROS_MASTER_URI=http://localhost:11311
+      - GAZEBO_MODEL_PATH=/app/catkin_ws/src/mechdog_sim/models
+    network_mode: host
+    depends_on:
+      - roscore
+    command: >
+      bash -c "source /app/catkin_ws/devel/setup.bash &&
+               roslaunch mechdog_sim simulation.launch"
+
+  # Navigation Stack - builder stage
+  navigation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - ./catkin_ws:/app/catkin_ws
+    environment:
+      - ROS_HOSTNAME=navigation
+      - ROS_MASTER_URI=http://localhost:11311
+      - PYTHONUNBUFFERED=1
+    network_mode: host
+    depends_on:
+      - roscore
+    command: >
+      bash -c "source /app/catkin_ws/devel/setup.bash &&
+               roslaunch mechdog_navigation navigation.launch environment:=simulation"
+
+  # RViz Visualization (deprecated - use mechdog_viz instead)
+  # This service is kept for backward compatibility but requires X11 forwarding
+  # For web-based visualization, use: docker-compose up mechdog_viz
+  rviz:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - ./catkin_ws:/app/catkin_ws
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - ROS_HOSTNAME=rviz
+      - ROS_MASTER_URI=http://localhost:11311
+    network_mode: host
+    depends_on:
+      - roscore
+    profiles:
+      - legacy
+    command: >
+      bash -c "source /app/catkin_ws/devel/setup.bash &&
+               roslaunch mechdog_description display.launch"
+
+  # ========================================================================
+  # LEGACY SERVICES (PyBullet - Old Architecture)
+  # ========================================================================
+
+  # Legacy: Algoritmos headless (uses old Dockerfile for PyBullet)
   solver:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.pybullet
     entrypoint: python -m exploration.solver
     volumes:
       - ./maps:/app/maps
     environment:
       - PYTHONUNBUFFERED=1
+    profiles:
+      - legacy
 
-  # ── SIMULACIÓN 3D (GUI en navegador vía noVNC) ──────────────────────
-  # Abrir http://localhost:6080/vnc.html
-
+  # Legacy: Simulación 3D con noVNC (uses old Dockerfile for PyBullet)
   visualize:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.pybullet
     command: /start_vnc.sh
     volumes:
       - ./maps:/app/maps
     environment:
       - PYTHONUNBUFFERED=1
     ports:
-      - "6080:6080"
+      - "6081:6080"
+    profiles:
+      - legacy
 
-  # Conveniencia: ejecutar entrenamiento sin pensar en entrypoint
+  # Legacy: Training (uses old Dockerfile for PyBullet)
   train:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.pybullet
     command: python main.py
     volumes:
       - ./maps:/app/maps
     environment:
       - PYTHONUNBUFFERED=1
+    profiles:
+      - legacy
