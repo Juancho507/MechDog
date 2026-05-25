@@ -60,6 +60,7 @@ catkin_install_python(PROGRAMS
   scripts/sensor_simulator_node.py
   scripts/metrics_collector_node.py
   scripts/spawn_robot.py
+  scripts/cmd_vel_to_gazebo.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
