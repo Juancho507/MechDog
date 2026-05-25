@@ -20,3 +20,6 @@ Thumbs.db
 # Logs / bags
 *.log
 *.bag
+
+# Auto-generated metrics CSVs
+catkin_ws/metrics_output/

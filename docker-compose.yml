@@ -1,12 +1,12 @@
-version: '3.8'
-
 services:
 
   # ========================================================================
   # ROS NOETIC SERVICES (Multi-Stage Build Architecture)
+  # All services communicate over the internal mechdog_net bridge network.
+  # DNS resolution uses service names (e.g. http://roscore:11311).
   # ========================================================================
 
-  # Base ROS service - Interactive development (builder stage, no GUI)
+  # Base ROS service — Interactive development (builder stage, no GUI)
   mechdog:
     build:
       context: .
@@ -15,12 +15,15 @@ services:
     volumes:
       - ./catkin_ws:/app/catkin_ws
     environment:
-      - ROS_HOSTNAME=localhost
-      - ROS_MASTER_URI=http://localhost:11311
+      - ROS_HOSTNAME=mechdog
+      - ROS_MASTER_URI=http://roscore:11311
       - PYTHONUNBUFFERED=1
     stdin_open: true
     tty: true
-    network_mode: host
+    networks:
+      - mechdog_net
+    depends_on:
+      - roscore
 
   # Web-based visualization service (Gazebo + RViz via noVNC)
   # Access: http://localhost:6080/vnc.html
@@ -35,17 +38,24 @@ services:
       - DISPLAY=:0
       - RESOLUTION=1920x1080
       - ROS_HOSTNAME=mechdog_viz
-      - ROS_MASTER_URI=http://mechdog_viz:11311
+      - ROS_MASTER_URI=http://roscore:11311
       - PYTHONUNBUFFERED=1
+      # Software rendering (no GPU passthrough needed)
+      - QT_X11_NO_MITSHM=1
+      - LIBGL_ALWAYS_SOFTWARE=1
+      - GAZEBO_HEADLESS=1
     stdin_open: true
     tty: true
     ports:
       - "6080:6080"       # noVNC web access: http://localhost:6080/vnc.html
-      - "11311:11311"     # ROS master (roscore)
     entrypoint: ["/start_vnc.sh"]
     command: bash
+    networks:
+      - mechdog_net
+    depends_on:
+      - roscore
 
-  # ROS Master (roscore) - builder stage
+  # ROS Master (roscore)
   roscore:
     build:
       context: .
@@ -53,11 +63,12 @@ services:
       target: builder
     environment:
       - ROS_HOSTNAME=roscore
-      - ROS_MASTER_URI=http://localhost:11311
-    network_mode: host
+      - ROS_MASTER_URI=http://roscore:11311
+    networks:
+      - mechdog_net
     command: roscore
 
-  # Gazebo Simulation - builder stage
+  # Gazebo Simulation
   simulation:
     build:
       context: .
@@ -68,16 +79,17 @@ services:
     environment:
       - DISPLAY=${DISPLAY:-:0}
       - ROS_HOSTNAME=simulation
-      - ROS_MASTER_URI=http://localhost:11311
+      - ROS_MASTER_URI=http://roscore:11311
       - GAZEBO_MODEL_PATH=/app/catkin_ws/src/mechdog_sim/models
-    network_mode: host
+    networks:
+      - mechdog_net
     depends_on:
       - roscore
     command: >
       bash -c "source /app/catkin_ws/devel/setup.bash &&
                roslaunch mechdog_sim simulation.launch"
 
-  # Navigation Stack - builder stage
+  # Navigation Stack
   navigation:
     build:
       context: .
@@ -87,18 +99,18 @@ services:
       - ./catkin_ws:/app/catkin_ws
     environment:
       - ROS_HOSTNAME=navigation
-      - ROS_MASTER_URI=http://localhost:11311
+      - ROS_MASTER_URI=http://roscore:11311
       - PYTHONUNBUFFERED=1
-    network_mode: host
+    networks:
+      - mechdog_net
     depends_on:
       - roscore
     command: >
       bash -c "source /app/catkin_ws/devel/setup.bash &&
                roslaunch mechdog_navigation navigation.launch environment:=simulation"
 
-  # RViz Visualization (deprecated - use mechdog_viz instead)
-  # This service is kept for backward compatibility but requires X11 forwarding
-  # For web-based visualization, use: docker-compose up mechdog_viz
+  # RViz Visualization (deprecated — use mechdog_viz instead)
+  # Kept for backward compatibility; requires X11 forwarding on the host.
   rviz:
     build:
       context: .
@@ -109,8 +121,9 @@ services:
     environment:
       - DISPLAY=${DISPLAY:-:0}
       - ROS_HOSTNAME=rviz
-      - ROS_MASTER_URI=http://localhost:11311
-    network_mode: host
+      - ROS_MASTER_URI=http://roscore:11311
+    networks:
+      - mechdog_net
     depends_on:
       - roscore
     profiles:
@@ -120,10 +133,9 @@ services:
                roslaunch mechdog_description display.launch"
 
   # ========================================================================
-  # LEGACY SERVICES (PyBullet - Old Architecture)
+  # LEGACY SERVICES (PyBullet — Old Architecture)
   # ========================================================================
 
-  # Legacy: Algoritmos headless (uses old Dockerfile for PyBullet)
   solver:
     build:
       context: .
@@ -136,7 +148,6 @@ services:
     profiles:
       - legacy
 
-  # Legacy: Simulación 3D con noVNC (uses old Dockerfile for PyBullet)
   visualize:
     build:
       context: .
@@ -151,7 +162,6 @@ services:
     profiles:
       - legacy
 
-  # Legacy: Training (uses old Dockerfile for PyBullet)
   train:
     build:
       context: .
@@ -163,3 +173,12 @@ services:
       - PYTHONUNBUFFERED=1
     profiles:
       - legacy
+
+
+# =========================================================================
+# Networks
+# =========================================================================
+
+networks:
+  mechdog_net:
+    driver: bridge

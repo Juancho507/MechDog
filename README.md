@@ -93,7 +93,7 @@ roscore ◀── simulation ◀── navigation
           mechdog_viz (visualización web)
 ```
 
-Los servicios `simulation` y `navigation` dependen de `roscore` y se conectan via `network_mode: host`.
+Los servicios `simulation` y `navigation` dependen de `roscore` y se comunican sobre la red bridge `mechdog_net` usando resolución DNS por nombre de servicio.
 
 ### ¿Qué contenedores deben estar abiertos?
 
@@ -119,7 +119,7 @@ MechDog/
 │       ├── mechdog_description/   # URDF/Xacro del robot
 │       │   ├── urdf/
 │       │   │   ├── mechdog.urdf.xacro       # Modelo físico (SIM + REAL)
-│       │   │   └── mechdog_gazebo.xacro     # Plugins Gazebo (P3D, LIDAR)
+│       │   │   └── mechdog_gazebo.xacro     # Plugins Gazebo (P3D, ultrasonido HC-SR04)
 │       │   ├── launch/display.launch
 │       │   ├── config/joint_limits.yaml
 │       │   └── rviz/
@@ -141,6 +141,11 @@ MechDog/
 │       │   └── worlds/
 │       │       ├── open_path.world
 │       │       └── open_path_world.world
+│       ├── mechdog_hardware_interface/  # HAL bridge (Hiwonder API ↔ ROS)
+│       │   ├── CMakeLists.txt
+│       │   ├── package.xml
+│       │   └── scripts/
+│       │       └── mechdog_hardware_interface.py
 │       ├── mechdog_navigation/    # Stack de navegación (100% portable)
 │       │   ├── scripts/
 │       │   │   ├── global_planner_node.py    (A*)
@@ -270,9 +275,9 @@ docker compose stop roscore simulation navigation mechdog_viz
 
 ---
 
-### Opción B: Script todo-en-uno (start.sh)
+### Opción B: Script orquestado (start.sh)
 
-Usa el contenedor `mechdog_viz` para correr todo internamente (Gazebo + navegación en un solo contenedor).
+`start.sh` levanta los 4 servicios secuencialmente sobre la red bridge, esperando a que cada uno esté listo antes de continuar.
 
 ```bash
 # Construir (solo la primera vez)
@@ -282,15 +287,15 @@ docker compose build mechdog_viz
 ./start.sh all
 
 # O pasos individuales:
-./start.sh sim     # Solo simulación
-./start.sh nav     # Solo navegación
+./start.sh sim     # Solo simulación + VNC
+./start.sh nav     # Solo navegación (sin Gazebo)
 ./start.sh status  # Ver estado del sistema
 ./start.sh stop    # Detener todo
 ```
 
 Luego abre **http://localhost:6080/vnc.html** en tu navegador.
 
-> `start.sh` automáticamente levanta el contenedor `mechdog_viz`, limpia procesos anteriores, espera a Gazebo, espera la odometría del robot y lanza la navegación.
+> `start.sh` levanta `roscore`, espera a que esté listo, luego `simulation`, espera a Gazebo, luego `navigation`, espera los 5+ nodos de navegación, y finalmente `mechdog_viz`. Cada servicio corre en su propio contenedor sobre la red `mechdog_net`.
 
 ---
 
@@ -316,7 +321,7 @@ Esperando nodos de navegacion......      [OK] 5 nodos de navegacion activos
 ### Lista completa de nodos activos (13 nodos)
 
 ```
-/base_to_laser          ← TF estática base_link → lidar_link
+/base_to_ultrasonic     ← TF estática base_link → ultrasonic_link
 /gazebo                 ← Servidor de simulación Gazebo
 /gazebo_gui             ← GUI de Gazebo (solo con gui:=true)
 /global_planner         ← Planificador global A*
@@ -632,6 +637,18 @@ Modelo físico del robot en formato URDF/Xacro.
 - **Odometría**: Plugin `libgazebo_ros_p3d.so` → `/gazebo/odom_clean`
 - **Archivos**: `mechdog.urdf.xacro` (modelo), `mechdog_gazebo.xacro` (plugins Gazebo)
 
+### mechdog_hardware_interface
+
+Capa HAL (Hardware Abstraction Layer) que traduce ROS ↔ Hiwonder API física.
+
+| Función | Descripción |
+|---------|-------------|
+| `/cmd_vel` → `mechdog.set_velocity()` | Traduce comandos de velocidad ROS a API del robot real |
+| `I2CSonar()` → `/mechdog/ultrasonic` + `/mechdog/scan` | Lee el HC-SR04 por I2C y publica como Range + 1-ray LaserScan |
+| `mode:=simulation` | En simulación, loggea comandos y retorna stub de 2.0m |
+
+El HAL publica con `angle_min=0.0` (rayo único al frente), igual que el noise_injector de simulación, asegurando que el stack de navegación reciba exactamente el mismo formato en sim y real.
+
 ### mechdog_sim
 
 Capa de simulación que conecta Gazebo con el stack de navegación.
@@ -639,7 +656,7 @@ Capa de simulación que conecta Gazebo con el stack de navegación.
 | Nodo | Función |
 |------|---------|
 | `spawn_robot.py` | Borra modelo anterior y hace spawn limpio en Gazebo |
-| `noise_injector_node.py` | Agrega ruido gaussiano + drift a odom y LIDAR (Sim-to-Real) |
+| `noise_injector_node.py` | Agrega ruido gaussiano + drift a odom y ultrasonido HC-SR04 (Sim-to-Real) |
 | `sensor_simulator_node.py` | Monitorea salud de sensores, logs timeouts |
 | `metrics_collector_node.py` | Guarda métricas en `/app/metrics_output/` |
 
@@ -655,6 +672,12 @@ Stack de navegación autónoma 100% portable (sin dependencias de Gazebo).
 
 ```
 /mechdog/goal ──▶ navigation_manager ──▶ global_planner (PlannerStrategy ABC)
+                                       │   ┌ A* / Dijkstra / BFS
+                                       │   └───▶ /mechdog/global_plan
+                                       ├──▶ scan_behavior (rotación 360° si no hay ruta)
+                                       ├──▶ local_planner (DWA)
+                                       ├──▶ safe_learning (freno activo)
+                                       └──▶ occupancy_grid_mapper
                                       │   ┌ A* / Dijkstra / BFS
                                       │   └───▶ /mechdog/global_plan
                                       ├──▶ scan_behavior (rotación 360° si no hay ruta)
