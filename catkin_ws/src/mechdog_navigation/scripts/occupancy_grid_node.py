@@ -275,11 +275,13 @@ class OccupancyGridMapper:
         return 0 <= x < self.map_width and 0 <= y < self.map_height
         
     def world_to_map(self, x_world, y_world):
-        """Convert world coordinates to map coordinates"""
+        """Convert world coordinates to map coordinates.
+        Uses round() to avoid half-cell offset from floating-point truncation
+        when the quotient is just below an integer (e.g. 499.999 → 500)."""
         if not (math.isfinite(x_world) and math.isfinite(y_world)):
-            return -1, -1  # is_valid_cell will reject this
-        x_map = int((x_world - self.param_origin_x) / self.param_resolution)
-        y_map = int((y_world - self.param_origin_y) / self.param_resolution)
+            return -1, -1
+        x_map = int(round((x_world - self.param_origin_x) / self.param_resolution))
+        y_map = int(round((y_world - self.param_origin_y) / self.param_resolution))
         return x_map, y_map
         
     def publish_map_callback(self, event):

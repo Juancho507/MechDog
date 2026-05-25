@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 """
 AlgorithmBenchmark — Automated path-planning benchmark for MechDog.
-Loads a standard test map, runs A*, Dijkstra, and BFS on the same
-PlanningProblem, logs results to stdout and appends to results.csv.
+Two scenarios:
+  A (Static) … immediate path calculation without rotation.
+  B (Active) … simulates scan behavior (360° rotation) then calculates path.
 
 Usage:
-    # Standalone (requires a ROS bag or pre-recorded map, or synthetic test):
     python experiment_runner.py
-
-    # With live ROS (uses current /mechdog/map):
     python experiment_runner.py --live
 """
 
@@ -17,24 +15,27 @@ import os
 import time
 import csv
 import argparse
+import math
+import copy
 
-# Ensure catkin workspace Python path
-_ws_src = os.path.join(os.path.dirname(__file__), 'catkin_ws', 'src')
-if _ws_src not in sys.path:
-    sys.path.insert(0, _ws_src)
+_ws_scripts = os.path.join(os.path.dirname(__file__), 'catkin_ws', 'src', 'mechdog_navigation', 'scripts')
+if _ws_scripts not in sys.path:
+    sys.path.insert(0, _ws_scripts)
 
-from mechdog_navigation.scripts.planner_strategy import (
+from planner_strategy import (
     AStarPlanner, DijkstraPlanner, BFSPlanner,
     PlanningProblem, PlanningResult,
 )
 from nav_msgs.msg import OccupancyGrid
 
+
 # ---------------------------------------------------------------------------
 #  Synthetic test map  (100×100, open corridor with a few obstacles)
 # ---------------------------------------------------------------------------
 
-def _build_test_map(width=100, height=100, resolution=0.1) -> OccupancyGrid:
-    """50 m × 50 m map, clear except a wall across the middle with a gap."""
+def _build_test_map(width=500, height=500, resolution=0.1) -> OccupancyGrid:
+    """50 m × 50 m map, wall across the middle with a gap, plus pillars.
+    Origin at (-25, -25) gives valid world coords from -25 to +25."""
     grid = OccupancyGrid()
     grid.info.width = width
     grid.info.height = height
@@ -45,18 +46,23 @@ def _build_test_map(width=100, height=100, resolution=0.1) -> OccupancyGrid:
     grid.info.origin.orientation.w = 1.0
 
     data = [0] * (width * height)
+    mid = height // 2  # 250
 
-    # Wall across y = 50 (middle), gap at x = 40..60
+    # Wall across y = mid, gap in x range [mid - 60, mid + 60]
     for x in range(width):
-        for y in [49, 50, 51]:
-            if 40 <= x <= 60:
-                continue  # gap
+        for y in [mid - 1, mid, mid + 1]:
+            if mid - 60 <= x <= mid + 60:
+                continue
             idx = y * width + x
             data[idx] = 100
 
-    # A few pillars
-    pillars = [(20, 20), (70, 30), (30, 70)]
-    for px, py in pillars:
+    # Pillars at grid cells — avoid center (robot start area)
+    pillars_px = [
+        (mid + 100, mid - 50),   # world (10, -5)
+        (mid - 80, mid - 30),    # world (-8, -3)
+        (mid + 40, mid + 100),   # world (4, 10)
+    ]
+    for px, py in pillars_px:
         for dx in range(-3, 4):
             for dy in range(-3, 4):
                 if dx * dx + dy * dy > 9:
@@ -69,6 +75,37 @@ def _build_test_map(width=100, height=100, resolution=0.1) -> OccupancyGrid:
     return grid
 
 
+def _simulate_scan_behavior(grid: OccupancyGrid, robot_world=(0.0, 0.0), radius_m=2.0) -> OccupancyGrid:
+    """Simulate the Scan Behavior: add free-space observations in a circle
+    around the robot, as if it had rotated 360° with its ultrasonic sensor."""
+    res = grid.info.resolution
+    ox = grid.info.origin.position.x
+    oy = grid.info.origin.position.y
+    r_cells = int(round(radius_m / res))
+
+    robot_gx = int(round((robot_world[0] - ox) / res))
+    robot_gy = int(round((robot_world[1] - oy) / res))
+
+    result = copy.deepcopy(grid)
+    data = list(result.data)
+    w = result.info.width
+    h = result.info.height
+
+    for dy in range(-r_cells, r_cells + 1):
+        for dx in range(-r_cells, r_cells + 1):
+            if dx * dx + dy * dy > r_cells * r_cells:
+                continue
+            gx = robot_gx + dx
+            gy = robot_gy + dy
+            if 0 <= gx < w and 0 <= gy < h:
+                idx = gy * w + gx
+                if data[idx] != 100:
+                    data[idx] = 0
+
+    result.data = data
+    return result
+
+
 # ---------------------------------------------------------------------------
 #  Benchmark runner
 # ---------------------------------------------------------------------------
@@ -79,9 +116,9 @@ _ALGORITHMS = {
     'BFS':      BFSPlanner,
 }
 
-_RESULTS_FILE = os.path.join(os.path.dirname(__file__), 'results.csv')
+_RESULTS_FILE = os.path.join(os.path.dirname(__file__), 'benchmark_results.csv')
 _FIELDS = [
-    'algorithm', 'success', 'nodes_expanded', 'cpu_time_ms',
+    'scenario', 'algorithm', 'success', 'nodes_expanded', 'cpu_time_ms',
     'path_length_cells', 'path_length_metres',
     'start_x', 'start_y', 'goal_x', 'goal_y',
 ]
@@ -91,19 +128,23 @@ class AlgorithmBenchmark:
     def __init__(self, occupancy_grid: OccupancyGrid):
         self.grid = occupancy_grid
 
-    def run_goal(self, start_world, goal_world, label="test") -> dict:
-        """Run all planners on one (start → goal). Returns row dicts."""
+    def run_goal(self, start_world, goal_world, label="test", scenario="A") -> list:
         res = self.grid.info.resolution
         ox = self.grid.info.origin.position.x
         oy = self.grid.info.origin.position.y
 
         def to_grid(p):
-            return (int((p[0] - ox) / res), int((p[1] - oy) / res))
+            return (int(round((p[0] - ox) / res)), int(round((p[1] - oy) / res)))
+
+        if scenario == 'B':
+            scan_grid = _simulate_scan_behavior(self.grid, start_world, radius_m=2.0)
+        else:
+            scan_grid = self.grid
 
         problem = PlanningProblem(
             start_grid=to_grid(start_world),
             goal_grid=to_grid(goal_world),
-            occupancy_grid=self.grid,
+            occupancy_grid=scan_grid,
             inflation_radius=3,
             goal_tolerance=2,
             cell_size=res,
@@ -116,16 +157,17 @@ class AlgorithmBenchmark:
             elapsed = (time.perf_counter() - t0) * 1000
 
             row = {
-                'algorithm':        name,
-                'success':          int(result.success),
-                'nodes_expanded':   result.nodes_expanded,
-                'cpu_time_ms':      round(result.cpu_time_ms, 2),
+                'scenario':          f'Scenario_{scenario}',
+                'algorithm':         name,
+                'success':           int(result.success),
+                'nodes_expanded':    result.nodes_expanded,
+                'cpu_time_ms':       round(result.cpu_time_ms, 2),
                 'path_length_cells': result.path_length_cells,
                 'path_length_metres': round(result.path_length_metres, 4),
-                'start_x':          start_world[0],
-                'start_y':          start_world[1],
-                'goal_x':           goal_world[0],
-                'goal_y':           goal_world[1],
+                'start_x':           start_world[0],
+                'start_y':           start_world[1],
+                'goal_x':            goal_world[0],
+                'goal_y':            goal_world[1],
             }
             rows.append(row)
 
@@ -139,17 +181,15 @@ class AlgorithmBenchmark:
         return rows
 
     def write_csv(self, rows):
-        """Append rows to results.csv."""
         exists = os.path.isfile(_RESULTS_FILE)
         with open(_RESULTS_FILE, 'a', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=_FIELDS)
             if not exists:
                 writer.writeheader()
             writer.writerows(rows)
-        print(f"\n  → Appended {len(rows)} rows to {_RESULTS_FILE}")
+        print(f"  → Appended {len(rows)} rows to {_RESULTS_FILE}")
 
     def run_suite(self):
-        """Run a standard set of start→goal tests."""
         tests = [
             ((0, 0), (4, 0),    "straight forward"),
             ((0, 0), (-4, 0),   "straight backward"),
@@ -160,10 +200,17 @@ class AlgorithmBenchmark:
             ((0, -2), (0, 2),   "cross wall L→R through gap"),
         ]
 
-        for start, goal, desc in tests:
-            print(f"\n  Goal: {desc}  ({start} → {goal})")
-            rows = self.run_goal(start, goal, desc)
-            self.write_csv(rows)
+        for scenario in ('A', 'B'):
+            label = "Static (no scan)" if scenario == 'A' else "Active (with scan)"
+            print(f"\n{'='*60}")
+            print(f"  Scenario {scenario}: {label}")
+            print(f"{'='*60}")
+            for start, goal, desc in tests:
+                print(f"\n  Goal: {desc}  ({start} → {goal})")
+                rows = self.run_goal(start, goal, desc, scenario)
+                self.write_csv(rows)
+
+        print(f"\n  Summary: benchmark_results.csv contains both scenarios A and B")
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +241,7 @@ def main():
     benchmark = AlgorithmBenchmark(grid)
     benchmark.run_suite()
 
-    print("\nDone. Results saved to results.csv")
+    print("\nDone. Results saved to benchmark_results.csv")
 
 
 if __name__ == '__main__':

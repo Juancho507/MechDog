@@ -128,9 +128,9 @@ class MechDogHardwareInterface:
         # --- Publish LaserScan (1 ray, for navigation stack compatibility) ---
         scan = LaserScan()
         scan.header = copy.deepcopy(range_msg.header)
-        scan.angle_min = -self.fov / 2.0
-        scan.angle_max = self.fov / 2.0
-        scan.angle_increment = self.fov
+        scan.angle_min = 0.0
+        scan.angle_max = 0.0
+        scan.angle_increment = 0.0
         scan.time_increment = 0.0
         scan.scan_time = dt = 1.0 / self.update_rate
         scan.range_min = self.range_min

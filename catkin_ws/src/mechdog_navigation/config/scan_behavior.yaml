@@ -1,0 +1,20 @@
+# Scan Behavior Configuration
+# Active exploration: rotates robot 360° when no global path is found
+# Mitigates spatial blindness from 15° FOV (single ultrasonic beam)
+
+scan_behavior:
+  enabled: true
+
+  # Scanning parameters
+  scan_angle: 6.283185307  # radians (360°)
+  angular_speed: 0.3  # rad/s (~17 s for full rotation)
+  plan_timeout: 5.0  # seconds to wait for global planner before scanning
+  max_consecutive_failures: 3  # max scan attempts before aborting
+
+  # Topics (hardware-agnostic)
+  topics:
+    cmd_vel: "/cmd_vel"
+    goal: "/mechdog/goal"
+    global_plan: "/mechdog/global_plan"
+    odom: "/mechdog/odom"
+    status: "/mechdog/navigation_status"

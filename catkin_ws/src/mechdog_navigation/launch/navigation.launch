@@ -12,6 +12,7 @@
   <arg name="enable_global_planner" default="true"/>
   <arg name="enable_local_planner" default="true"/>
   <arg name="enable_safe_learning" default="true"/>
+  <arg name="enable_scan_behavior" default="true"/>
   <arg name="enable_manager" default="true"/>
   
   <!-- ========================================================================= -->
@@ -73,7 +74,19 @@
   </group>
   
   <!-- ========================================================================= -->
-  <!-- 6. Navigation Manager (State Machine)                                     -->
+  <!-- 6. Scan Behavior (Active Exploration)                                     -->
+  <!-- ========================================================================= -->
+
+  <group if="$(arg enable_scan_behavior)">
+    <rosparam command="load" file="$(find mechdog_navigation)/config/scan_behavior.yaml"/>
+
+    <node name="scan_behavior" pkg="mechdog_navigation" type="scan_behavior_node.py" output="screen">
+      <rosparam command="load" file="$(find mechdog_navigation)/config/scan_behavior.yaml"/>
+    </node>
+  </group>
+
+  <!-- ========================================================================= -->
+  <!-- 7. Navigation Manager (State Machine)                                     -->
   <!-- ========================================================================= -->
   
   <group if="$(arg enable_manager)">

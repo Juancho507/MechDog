@@ -87,9 +87,9 @@ class NoiseInjector:
         scan = LaserScan()
         scan.header = copy.deepcopy(range_msg.header)
         scan.header.frame_id = 'ultrasonic_link'
-        scan.angle_min = -0.13
-        scan.angle_max = 0.13
-        scan.angle_increment = 0.26
+        scan.angle_min = 0.0
+        scan.angle_max = 0.0
+        scan.angle_increment = 0.0
         scan.time_increment = 0.0
         scan.scan_time = 1.0 / 20.0
         scan.range_min = range_msg.min_range

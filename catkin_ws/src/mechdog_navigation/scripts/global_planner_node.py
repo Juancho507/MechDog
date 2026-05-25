@@ -117,7 +117,7 @@ class GlobalPlanner:
         res = self.current_map.info.resolution
         ox = self.current_map.info.origin.position.x
         oy = self.current_map.info.origin.position.y
-        return (int((x - ox) / res), int((y - oy) / res))
+        return (int(round((x - ox) / res)), int(round((y - oy) / res)))
 
     def grid_to_world(self, gx, gy):
         if self.current_map is None:

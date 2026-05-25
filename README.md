@@ -14,10 +14,12 @@
    - [Opción B: Script todo-en-uno (start.sh)](#opción-b-script-todo-en-uno-startsh)
 5. [Salida esperada](#5-salida-esperada-al-correr-el-proyecto)
 6. [Enviar un goal de navegación](#6-enviar-un-goal-de-navegación)
-7. [Experimentación](#7-experimentación)
-8. [Referencia de topics ROS](#8-referencia-de-topics-ros)
-9. [Arquitectura de los paquetes](#9-arquitectura-de-los-paquetes)
-10. [Troubleshooting](#10-troubleshooting)
+7. [Visualización y Simulación del Entorno](#7-visualización-y-simulación-del-entorno)
+8. [Experimentación](#8-experimentación)
+9. [Benchmarking Algorítmico](#9-benchmarking-algorítmico)
+10. [Referencia de topics ROS](#10-referencia-de-topics-ros)
+11. [Arquitectura de los paquetes](#11-arquitectura-de-los-paquetes)
+12. [Troubleshooting](#12-troubleshooting)
 
 ---
 
@@ -50,8 +52,13 @@
 ### Flujo de datos de sensores
 
 ```
-Gazebo (P3D plugin) ──▶ /gazebo/odom_clean ──▶ noise_injector ──▶ /mechdog/odom
-Gazebo (LIDAR plugin) ─▶ /gazebo/lidar_clean ─▶ noise_injector ──▶ /mechdog/scan
+Gazebo (P3D plugin) ────▶ /gazebo/odom_clean ──▶ noise_injector ───▶ /mechdog/odom
+Gazebo (Range HC-SR04) ─▶ /gazebo/ultrasonic_clean ─▶ noise_injector ──▶ /mechdog/ultrasonic (Range)
+                                                              └──▶ /mechdog/scan (1-ray LaserScan)
+
+Pipeline real (HAL):
+  I2C Sonar (HC-SR04) ──▶ mechdog_hardware_interface ──▶ /mechdog/ultrasonic
+                                                    └──▶ /mechdog/scan (1-ray LaserScan)
 ```
 
 ### Docker Multi-Stage Build
@@ -381,7 +388,118 @@ docker compose exec mechdog_viz bash -c "
 
 ---
 
-## 7. Experimentación
+## 7. Visualización y Simulación del Entorno
+
+Esta sección detalla cómo lanzar la simulación, abrir la interfaz web noVNC, cargar el mapa probabilístico y observar en tiempo real cómo el robot ejecuta el *Scan Behavior* y traza rutas con distintos algoritmos.
+
+### 7.1 Lanzar simulación completa
+
+```bash
+# Construir imagen (solo la primera vez)
+docker compose build mechdog_viz
+
+# Iniciar todo (Gazebo + navegación + noVNC)
+./start.sh all
+```
+
+O con servicios separados:
+
+```bash
+docker compose up -d roscore
+docker compose up -d simulation
+docker compose up -d navigation
+docker compose up -d mechdog_viz
+```
+
+### 7.2 Acceder a la interfaz web noVNC
+
+En el navegador: **http://localhost:6080/vnc.html** → click **Connect**
+
+Verás un escritorio virtual Linux con:
+- **Gazebo GUI**: Mundo de simulación con el robot MechDog
+- **RViz**: Visualización del mapa de ocupación, rutas y planificación
+
+### 7.3 Cargar el mapa probabilístico
+
+En RViz (ya configurado en el launch):
+- Add → **Map** → Topic: `/mechdog/map`
+- Add → **LaserScan** → Topic: `/mechdog/scan`
+- Add → **Path** → Topic: `/mechdog/global_plan`
+- Add → **Path** → Topic: `/mechdog/local_plan`
+
+Todos estos temas se cargan automáticamente al abrir el archivo RViz configurado.
+
+### 7.4 Observar el Scan Behavior en tiempo real
+
+El *Scan Behavior* se activa automáticamente cuando el planificador global no encuentra una ruta hacia el goal (debido al FOV de 15° del sensor ultrasónico).
+
+Para provocar y observar el Scan Behavior:
+
+```bash
+# 1. Enviar un goal detrás de un obstáculo (fuera del FOV inicial)
+docker compose exec mechdog_viz bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  rostopic pub /mechdog/goal geometry_msgs/PoseStamped \
+  '{header: {frame_id: odom}, pose: {position: {x: 3.0, y: 2.0, z: 0.0}, orientation: {w: 1.0}}}' \
+  --once
+"
+
+# 2. Monitorear el estado del scan behavior
+docker compose exec mechdog_viz bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  rostopic echo /mechdog/navigation_status
+"
+```
+
+El robot se detendrá, rotará 360° a 0.3 rad/s (~21 segundos), poblando el mapa probabilístico durante la rotación. Una vez completado, el planificador global recalculará la ruta, y el robot navegará hacia el goal.
+
+### 7.5 Monitorear el mapa en tiempo real
+
+```bash
+# Ver el mapa de ocupación actual
+docker compose exec mechdog_viz bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  rostopic echo /mechdog/map -n 1 --noarr | grep -E 'width:|height:|resolution:'
+"
+
+# Ver la frecuencia de actualización del mapa
+docker compose exec mechdog_viz bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  rostopic hz /mechdog/map
+"
+
+# Ver las rutas global y local
+docker compose exec mechdog_viz bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  rostopic echo /mechdog/global_plan -n 1 | grep -c 'poses:'
+"
+```
+
+### 7.6 Cambiar algoritmo de planificación global
+
+```bash
+# A* (default)
+docker compose exec mechdog_viz bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  rosparam set /global_planner/algorithm astar
+"
+
+# Dijkstra
+docker compose exec mechdog_viz bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  rosparam set /global_planner/algorithm dijkstra
+"
+
+# BFS
+docker compose exec mechdog_viz bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  rosparam set /global_planner/algorithm bfs
+"
+```
+
+---
+
+## 8. Experimentación
 
 El paquete `mechdog_experiments` permite ejecutar baterías de pruebas automatizadas para evaluar el stack de navegación.
 
@@ -416,7 +534,57 @@ Los reportes se generan en `catkin_ws/src/mechdog_experiments/report/`.
 
 ---
 
-## 8. Referencia de Topics ROS
+## 9. Benchmarking Algorítmico
+
+El proyecto incluye un motor de benchmarking automatizado (`experiment_runner.py`) para comparar los tres algoritmos de planificación global (A*, Dijkstra, BFS) bajo dos escenarios.
+
+### 9.1 Escenarios de benchmark
+
+| Escenario | Descripción |
+|-----------|-------------|
+| **A (Static)** | Cálculo inmediato de ruta sin rotación previa |
+| **B (Active)** | Simula el *Scan Behavior* (barrido 360° de 2m de radio) antes del cálculo |
+
+### 9.2 Ejecutar benchmark
+
+```bash
+# Benchmark con mapa sintético (100×100, obstáculos + pasillo)
+python experiment_runner.py
+
+# Benchmark con mapa en vivo desde ROS
+python experiment_runner.py --live
+```
+
+### 9.3 Resultados esperados
+
+El script ejecuta cada algoritmo en 7 pruebas de navegación para ambos escenarios y exporta los resultados a `benchmark_results.csv`.
+
+| Campo | Descripción |
+|-------|-------------|
+| `scenario` | `Scenario_A` o `Scenario_B` |
+| `algorithm` | `A*`, `Dijkstra`, `BFS` |
+| `success` | 1 si encontró ruta, 0 si falló |
+| `nodes_expanded` | Cantidad de nodos expandidos durante la búsqueda |
+| `cpu_time_ms` | Tiempo de CPU del algoritmo en milisegundos |
+| `path_length_metres` | Longitud de la ruta en metros |
+| `start_x / start_y` | Coordenadas de inicio (mundo) |
+| `goal_x / goal_y` | Coordenadas de destino (mundo) |
+
+### 9.4 Análisis comparativo
+
+El benchmark revela las diferencias fundamentales entre los algoritmos:
+
+| Aspecto | A* | Dijkstra | BFS |
+|---------|----|----------|-----|
+| Heurística | Manhattan | Ninguna (costo uniforme) | Ninguna |
+| Garantía | Ruta óptima (si heurística admisible) | Ruta de costo mínimo | Ruta con menos pasos |
+| Complejidad | O((V+E) log V) | O((V+E) log V) | O(V+E) |
+| Uso de memoria | Prioridad (heap) + visited | Prioridad (heap) + visited | Cola FIFO + visited |
+| Mejor para | Mapas grandes con obstáculos dispersos | Mapas con costos variables | Mapas sin costos diferenciales |
+
+---
+
+## 10. Referencia de Topics ROS
 
 ### Topics de Entrada (el robot recibe)
 
@@ -430,7 +598,8 @@ Los reportes se generan en `catkin_ws/src/mechdog_experiments/report/`.
 | Topic | Tipo | Hz | Descripción |
 |-------|------|----|-------------|
 | `/mechdog/odom` | `nav_msgs/Odometry` | 50 | Odometría con ruido (frame: `odom`) |
-| `/mechdog/scan` | `sensor_msgs/LaserScan` | 20 | LIDAR 360° con ruido |
+| `/mechdog/ultrasonic` | `sensor_msgs/Range` | 20 | HC-SR04 ultrasonido (FOV 15°, 3.0m) |
+| `/mechdog/scan` | `sensor_msgs/LaserScan` | 20 | 1-rayo LaserScan (compatibilidad nav stack) |
 | `/mechdog/cmd_vel_raw` | `geometry_msgs/Twist` | 20 | Velocidad calculada por DWA |
 | `/mechdog/navigation_status` | `std_msgs/String` | 1 | `idle` / `moving` / `replanning` |
 | `/mechdog/safety_status` | `std_msgs/String` | 50 | `safe` / `warning` / `emergency_stop` |
@@ -444,12 +613,12 @@ Los reportes se generan en `catkin_ws/src/mechdog_experiments/report/`.
 | Topic | Descripción |
 |-------|-------------|
 | `/gazebo/odom_clean` | Odometría ground-truth del plugin P3D |
-| `/gazebo/lidar_clean` | LIDAR sin ruido del plugin gazebo_ros_laser |
+| `/gazebo/ultrasonic_clean` | HC-SR04 sin ruido (Range) del plugin gazebo_ros_range |
 | `/clock` | Tiempo de simulación (use_sim_time=true) |
 
 ---
 
-## 9. Arquitectura de los Paquetes
+## 11. Arquitectura de los Paquetes
 
 ### mechdog_description
 
@@ -457,9 +626,9 @@ Modelo físico del robot en formato URDF/Xacro.
 
 - **Cuerpo**: Box 0.5×0.3×0.2m, masa 15kg
 - **Patas**: 4 cilindros, masa 0.5kg cada uno (joints fijos)
-- **LIDAR**: Cilindro en `x=0.28m, z=0.15m` desde base_link
-  - Tipo: ray, 360°, 0.1-10m, 20Hz
-  - Plugin: `libgazebo_ros_laser.so` → `/gazebo/lidar_clean`
+- **Ultrasonido HC-SR04**: Caja 0.02×0.02×0.01m en `x=0.28m, z=0.15m` desde base_link
+  - Tipo: range, FOV 15° (0.26 rad), 0.02-3.0m, 20Hz
+  - Plugin: `libgazebo_ros_range.so` → `/gazebo/ultrasonic_clean`
 - **Odometría**: Plugin `libgazebo_ros_p3d.so` → `/gazebo/odom_clean`
 - **Archivos**: `mechdog.urdf.xacro` (modelo), `mechdog_gazebo.xacro` (plugins Gazebo)
 
@@ -475,7 +644,7 @@ Capa de simulación que conecta Gazebo con el stack de navegación.
 | `metrics_collector_node.py` | Guarda métricas en `/app/metrics_output/` |
 
 **Parámetros de ruido** (`noise_injection.yaml`):
-- LIDAR: σ=0.01m, 2% outliers, 1% dropouts, ruido angular 0.005rad
+- Ultrasonido: σ=0.01m, 1% outliers, 2% dropouts
 - Odometría: σ=0.005m, drift 0.001m/s, σ_θ=0.002rad/s, drift angular 0.002rad/s
 - Actuadores: retardo 50ms, respuesta de primer orden
 - Suelo: variación de fricción 0.2 a 2Hz
@@ -485,18 +654,23 @@ Capa de simulación que conecta Gazebo con el stack de navegación.
 Stack de navegación autónoma 100% portable (sin dependencias de Gazebo).
 
 ```
-/mechdog/goal ──▶ navigation_manager ──▶ global_planner (A*)
-                                     ├──▶ local_planner (DWA)
-                                     ├──▶ safe_learning (freno activo)
-                                     └──▶ occupancy_grid_mapper
+/mechdog/goal ──▶ navigation_manager ──▶ global_planner (PlannerStrategy ABC)
+                                      │   ┌ A* / Dijkstra / BFS
+                                      │   └───▶ /mechdog/global_plan
+                                      ├──▶ scan_behavior (rotación 360° si no hay ruta)
+                                      ├──▶ local_planner (DWA)
+                                      ├──▶ safe_learning (freno activo)
+                                      └──▶ occupancy_grid_mapper
 ```
 
 | Nodo | Algoritmo | Frecuencia |
 |------|-----------|------------|
-| `global_planner_node.py` | A* en grid 2D | 1 Hz (o al recibir goal) |
+| `planner_strategy.py` | ABC con A*, Dijkstra y BFS (heapq) | — |
+| `global_planner_node.py` | Delegación a PlannerStrategy | 1 Hz (o al recibir goal) |
+| `scan_behavior_node.py` | Rotación 360° a 0.3 rad/s si no hay plan | Reactivo |
 | `local_planner_node.py` | DWA (Dynamic Window Approach) | 20 Hz |
 | `safe_learning_node.py` | Freno predictivo + polígono dinámico | 50 Hz |
-| `occupancy_grid_node.py` | Bayesian log-odds update | Por scan LIDAR |
+| `occupancy_grid_node.py` | Bayesian log-odds update | Por scan |
 | `navigation_manager_node.py` | Máquina de estados FSM | Reactivo |
 
 **Fórmula de frenado (Safe Learning)**:
@@ -543,7 +717,7 @@ Framework para ejecutar experimentos automatizados de navegación.
 
 ---
 
-## 10. Troubleshooting
+## 12. Troubleshooting
 
 ### Error: `entity already exists` o `Address already in use`
 
