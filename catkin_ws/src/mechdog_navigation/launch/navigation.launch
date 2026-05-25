@@ -26,6 +26,13 @@
   <rosparam command="load" file="$(find mechdog_navigation)/config/environments/$(arg environment).yaml"/>
   
   <!-- ========================================================================= -->
+  <!-- 1.5. TF: map → odom (static identity, no AMCL)                           -->
+  <!-- ========================================================================= -->
+
+  <node name="map_to_odom" pkg="tf2_ros" type="static_transform_publisher"
+        args="0 0 0 0 0 0 map odom"/>
+
+  <!-- ========================================================================= -->
   <!-- 2. Occupancy Grid Mapping                                                 -->
   <!-- ========================================================================= -->
   

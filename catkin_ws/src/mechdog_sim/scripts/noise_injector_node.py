@@ -10,6 +10,8 @@ import rospy
 import numpy as np
 from sensor_msgs.msg import LaserScan, Range
 from nav_msgs.msg import Odometry
+from geometry_msgs.msg import TransformStamped
+import tf2_ros
 import copy
 
 
@@ -28,6 +30,9 @@ class NoiseInjector:
             '/gazebo/ultrasonic_clean', Range, self.range_callback)
         self.odom_sub = rospy.Subscriber(
             '/gazebo/odom_clean', Odometry, self.odom_callback)
+
+        # TF broadcaster (odom → base_footprint)
+        self._tf_broadcaster = tf2_ros.TransformBroadcaster()
 
         # Drift state
         self.odom_drift = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
@@ -128,6 +133,17 @@ class NoiseInjector:
         noisy_odom.pose.pose.orientation.w = w_new
 
         self.odom_pub.publish(noisy_odom)
+
+        # Broadcast TF: odom → base_footprint (required by nav stack)
+        t = TransformStamped()
+        t.header.stamp = rospy.Time.now()
+        t.header.frame_id = 'odom'
+        t.child_frame_id = 'base_footprint'
+        t.transform.translation.x = noisy_odom.pose.pose.position.x
+        t.transform.translation.y = noisy_odom.pose.pose.position.y
+        t.transform.translation.z = noisy_odom.pose.pose.position.z
+        t.transform.rotation = noisy_odom.pose.pose.orientation
+        self._tf_broadcaster.sendTransform(t)
 
     def run(self):
         rospy.spin()

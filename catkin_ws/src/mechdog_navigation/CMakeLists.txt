@@ -65,6 +65,7 @@ catkin_install_python(PROGRAMS
   scripts/safe_learning_node.py
   scripts/occupancy_grid_node.py
   scripts/navigation_manager_node.py
+  scripts/scan_behavior_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

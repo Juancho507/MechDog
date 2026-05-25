@@ -74,6 +74,8 @@ class DWALocalPlanner:
             '~local_planner/dwa/scoring/goal_distance_bias', 20.0)
         self.param_occdist_scale = rospy.get_param(
             '~local_planner/dwa/scoring/occdist_scale', 0.02)
+        self.param_speed_bonus = rospy.get_param(
+            '~local_planner/dwa/scoring/speed_bonus', 10.0)
         
         # Obstacle avoidance
         self.param_min_obstacle_dist = rospy.get_param(
@@ -254,11 +256,12 @@ class DWALocalPlanner:
         # Distance to obstacles
         obstacle_dist = self.get_min_obstacle_distance(trajectory[-1][0], trajectory[-1][1])
         
-        # Compute score
+        # Compute score with forward velocity bonus [δ·vx]
         score = (
             self.param_path_distance_bias * (1.0 / (path_dist + 0.1)) +
             self.param_goal_distance_bias * (1.0 / (goal_dist + 0.1)) +
-            self.param_occdist_scale * obstacle_dist
+            self.param_occdist_scale * obstacle_dist +
+            self.param_speed_bonus * v
         )
         
         return score

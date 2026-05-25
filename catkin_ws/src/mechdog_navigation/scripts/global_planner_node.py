@@ -7,9 +7,10 @@ so the ROS node remains a thin wrapper for benchmarking.
 """
 import rospy
 import numpy as np
+import tf2_ros
 from nav_msgs.msg import OccupancyGrid, Path
 from geometry_msgs.msg import PoseStamped
-from planner_strategy import (
+from mechdog_navigation.planner_strategy import (
     PlanningProblem, PlanningResult,
     AStarPlanner, DijkstraPlanner, BFSPlanner,
 )
@@ -29,7 +30,10 @@ class GlobalPlanner:
 
         self.current_map = None
         self.current_goal = None
-        self.robot_grid = None  # updated via TF / odometry
+        self.robot_grid = None
+
+        self._tf_buffer = tf2_ros.Buffer()
+        self._tf_listener = tf2_ros.TransformListener(self._tf_buffer)
 
         self.path_pub = rospy.Publisher(
             self.param_plan_output, Path, queue_size=1)
@@ -74,11 +78,23 @@ class GlobalPlanner:
         if self.current_goal is not None and self.current_map is not None:
             self.plan_path()
 
+    def _get_robot_grid(self):
+        try:
+            t = self._tf_buffer.lookup_transform(
+                self.param_global_frame, 'base_footprint', rospy.Time(0),
+                rospy.Duration(0.5))
+            return self.world_to_grid(
+                t.transform.translation.x,
+                t.transform.translation.y)
+        except Exception as e:
+            rospy.logwarn_throttle(5.0, "Cannot get robot pose from TF: %s", e)
+            return self.world_to_grid(0.0, 0.0)
+
     def plan_path(self):
         if self.current_map is None or self.current_goal is None:
             return
 
-        start_grid = self.world_to_grid(0.0, 0.0)
+        start_grid = self._get_robot_grid()
         goal_grid = self.world_to_grid(
             self.current_goal.pose.position.x,
             self.current_goal.pose.position.y)

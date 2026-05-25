@@ -34,9 +34,10 @@ local_planner:
     
     # Trajectory scoring weights
     scoring:
-      path_distance_bias: 32.0  # Weight for staying close to global path
-      goal_distance_bias: 20.0  # Weight for getting closer to goal
-      occdist_scale: 0.02  # Weight for avoiding obstacles
+      path_distance_bias: 24.0  # Weight for staying close to global path
+      goal_distance_bias: 48.0  # Weight for getting closer to goal
+      occdist_scale: 0.02       # Weight for avoiding obstacles
+      speed_bonus: 10.0         # Forward velocity reward [δ] to escape local minima
       
     # Forward simulation
     forward_point_distance: 0.325  # meters - point on robot to use for trajectory sim
@@ -70,7 +71,7 @@ local_planner:
   # Topics (hardware-agnostic)
   topics:
     global_plan_input: "/mechdog/global_plan"
-    cmd_vel_output: "/cmd_vel"
+    cmd_vel_output: "/mechdog/cmd_vel_raw"
     odom_input: "/mechdog/odom"
     scan_input: "/mechdog/scan"
     local_plan_output: "/mechdog/local_plan"
