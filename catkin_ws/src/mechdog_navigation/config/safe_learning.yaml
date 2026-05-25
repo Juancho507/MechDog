@@ -107,7 +107,7 @@ safe_learning:
   # Frames
   frames:
     robot_frame: "base_footprint"
-    sensor_frame: "lidar_link"
+    sensor_frame: "ultrasonic_link"
     
   # Update rate
   control_frequency: 50.0  # Hz (high frequency for safety)

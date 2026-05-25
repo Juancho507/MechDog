@@ -1,46 +1,37 @@
 # Environment-Specific Configuration: SIMULATION
-# Overrides for simulated environment (Gazebo/PyBullet)
+# HC-SR04 ultrasonic range sensor (single forward beam, 3.0 m max)
 
 environment:
   name: "simulation"
   type: "virtual"
-  
-  # Sensor topic remapping (if needed)
+
   topic_remapping:
-    # Map simulation topics to standard navigation topics
-    scan_input: "/mechdog/scan"  # From noise_injector in mechdog_sim
-    odom_input: "/mechdog/odom"  # From noise_injector in mechdog_sim
-    
-  # Velocity limits (can be more aggressive in simulation)
+    scan_input: "/mechdog/scan"
+    odom_input: "/mechdog/odom"
+
   velocity:
-    max_linear: 1.2  # m/s (slightly higher for testing)
-    max_angular: 1.8  # rad/s
-    
-  # Sensor characteristics
+    max_linear: 0.5
+    max_angular: 0.8
+
   sensors:
-    lidar:
-      max_range: 10.0  # meters
-      min_range: 0.10  # meters
-      noise_level: "medium"  # Expected noise from noise_injector
-      
-  # Planning aggressiveness
+    ultrasonic:
+      max_range: 3.0
+      min_range: 0.02
+      fov: 0.26
+      noise_level: "low"
+
   planning:
-    global_replan_distance: 0.3  # meters (replan more frequently)
-    local_planning_frequency: 20.0  # Hz
-    
-  # Safety distances account for the robot's own leg geometry.
-  # The front legs appear at ~0.13-0.15m in the LIDAR scan, so
-  # critical_distance must be below that to avoid self-triggered stops.
+    global_replan_distance: 0.3
+    local_planning_frequency: 20.0
+
   safety:
-    critical_distance: 0.20  # meters — robot footprint radius ~0.18m
-    warning_distance: 0.35  # meters
-    
-  # Computational resources
+    critical_distance: 0.25
+    warning_distance: 0.50
+
   compute:
-    max_planning_time: 0.2  # seconds (more time available)
+    max_planning_time: 0.2
     high_frequency_mode: true
-    
-  # Debugging
+
   debug:
     visualize_plans: true
     publish_debug_markers: true

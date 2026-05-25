@@ -1,76 +1,38 @@
 # Environment-Specific Configuration: REAL HARDWARE
-# Overrides for physical MechDog robot
+# Physical MechDog with HC-SR04 ultrasonic + Hiwonder API
 
 environment:
   name: "real_hardware"
   type: "physical"
-  
-  # Sensor topic remapping (from hardware drivers)
+
   topic_remapping:
-    # Map hardware driver topics to standard navigation topics
-    scan_input: "/hardware/lidar/scan"  # From actual LIDAR driver
-    odom_input: "/hardware/odom"  # From wheel encoders/IMU fusion
-    
-  # Velocity limits (conservative for safety)
+    scan_input: "/mechdog/scan"
+    odom_input: "/mechdog/odom"
+
   velocity:
-    max_linear: 0.8  # m/s (conservative on real hardware)
-    max_angular: 1.2  # rad/s
-    
-  # Sensor characteristics
+    max_linear: 0.3
+    max_angular: 0.5
+
   sensors:
-    lidar:
-      max_range: 8.0  # meters (real sensor limitation)
-      min_range: 0.15  # meters (avoid self-reflections)
-      noise_level: "high"  # Real-world sensor noise
-      
-    odometry:
-      covariance_multiplier: 1.5  # Account for wheel slip
-      
-  # Planning aggressiveness (more conservative)
+    ultrasonic:
+      max_range: 3.0
+      min_range: 0.02
+      fov: 0.26
+      noise_level: "real"
+
   planning:
-    global_replan_distance: 0.5  # meters
-    local_planning_frequency: 15.0  # Hz (lower to match compute)
-    
-  # Safety (more conservative for real robot)
+    global_replan_distance: 0.2
+    local_planning_frequency: 20.0
+
   safety:
-    critical_distance: 0.20  # meters (more conservative)
-    warning_distance: 0.40  # meters
-    braking_safety_factor: 2.0  # Extra safety margin
-    
-  # Computational resources (limited on embedded system)
+    critical_distance: 0.30
+    warning_distance: 0.60
+
   compute:
-    max_planning_time: 0.15  # seconds (less compute available)
+    max_planning_time: 0.5
     high_frequency_mode: false
-    optimize_for_embedded: true
-    
-  # Physical constraints
-  physical:
-    # Account for actual robot inertia
-    inertia_compensation: true
-    
-    # Ground friction variations
-    variable_friction: true
-    
-    # Battery monitoring
-    low_battery_threshold: 20.0  # percent
-    reduce_velocity_on_low_battery: true
-    
-  # Debugging (reduced for performance)
+
   debug:
-    visualize_plans: false  # Disable to save bandwidth
+    visualize_plans: true
     publish_debug_markers: false
     log_level: "info"
-    
-  # Communication
-  communication:
-    # Handle potential network delays
-    network_timeout: 1.0  # seconds
-    use_compressed_topics: true
-    
-  # Monitoring
-  monitoring:
-    # Enhanced monitoring for real hardware
-    track_battery: true
-    track_temperature: true
-    track_motor_current: true
-    emergency_stop_on_fault: true

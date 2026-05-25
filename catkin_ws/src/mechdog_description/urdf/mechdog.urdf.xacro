@@ -8,10 +8,12 @@
   <xacro:property name="robot_height" value="0.2"/>
   <xacro:property name="robot_mass" value="15.0"/>
   
-  <!-- Sensor Offsets — LIDAR placed just past the front legs (robot_length/2 = 0.25 m)
-       so that forward-facing rays do not hit the robot's own legs. -->
-  <xacro:property name="lidar_offset_x" value="0.28"/>
-  <xacro:property name="lidar_offset_z" value="0.15"/>
+  <!-- Sensor Offsets — Ultrasonic at front-center, past the legs -->
+  <xacro:property name="ultrasonic_offset_x" value="0.28"/>
+  <xacro:property name="ultrasonic_offset_z" value="0.15"/>
+  <xacro:property name="ultrasonic_fov" value="0.26"/>
+  <xacro:property name="ultrasonic_min_range" value="0.02"/>
+  <xacro:property name="ultrasonic_max_range" value="3.0"/>
   
   <!-- Velocity Limits -->
   <xacro:property name="max_velocity" value="1.0"/>
@@ -65,32 +67,32 @@
     <child link="base_link"/>
   </joint>
 
-  <!-- LIDAR Sensor -->
-  <link name="lidar_link">
+  <!-- Ultrasonic Sensor (HC-SR04 equivalent) -->
+  <link name="ultrasonic_link">
     <visual>
       <geometry>
-        <cylinder length="0.1" radius="0.05"/>
+        <box size="0.02 0.02 0.01"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
-        <cylinder length="0.1" radius="0.05"/>
+        <box size="0.02 0.02 0.01"/>
       </geometry>
     </collision>
     <inertial>
-      <mass value="0.1"/>
+      <mass value="0.01"/>
       <origin xyz="0 0 0" />
-      <inertia  ixx="0.0001" ixy="0.0" ixz="0.0"
-                iyy="0.0001" iyz="0.0" izz="0.0001"/>
+      <inertia  ixx="0.00001" ixy="0.0" ixz="0.0"
+                iyy="0.00001" iyz="0.0" izz="0.00001"/>
     </inertial>
   </link>
 
-  <!-- Static transform from base_link to lidar_link -->
-  <joint name="base_link_lidar_link" type="fixed">
-    <origin xyz="${lidar_offset_x} 0 ${lidar_offset_z}" rpy="0 0 0"/>
+  <!-- Static transform from base_link to ultrasonic_link -->
+  <joint name="base_link_ultrasonic_link" type="fixed">
+    <origin xyz="${ultrasonic_offset_x} 0 ${ultrasonic_offset_z}" rpy="0 0 0"/>
     <parent link="base_link"/>
-    <child link="lidar_link"/>
+    <child link="ultrasonic_link"/>
   </joint>
 
   <!-- Simplified Leg Links (for visualization) -->
@@ -207,15 +209,9 @@
     <child link="leg_rear_right"/>
   </joint>
 
-  <!-- Gazebo Plugins (conditioned on simulation) -->
-  <xacro:unless value="$(arg simulation)">
-    <!-- Empty tag when not in simulation -->
-  </xacro:unless>
-  
+  <!-- Simulation-only plugins (Gazebo) -->
   <xacro:if value="$(arg simulation)">
-    <!-- Ground-truth Odometry Plugin (P3D)
-         Publishes the robot's pose from Gazebo directly to /gazebo/odom_clean.
-         This is the source of truth consumed by noise_injector → /mechdog/odom. -->
+    <!-- Ground-truth Odometry Plugin (P3D) -->
     <gazebo>
       <plugin name="gazebo_ros_ground_truth_odom" filename="libgazebo_ros_p3d.so">
         <bodyName>base_link</bodyName>
@@ -228,36 +224,43 @@
       </plugin>
     </gazebo>
 
-    <!-- LIDAR Sensor Plugin -->
-    <gazebo reference="lidar_link">
-      <material>Gazebo/Black</material>
-      <sensor type="ray" name="lidar_sensor">
+    <!-- Ultrasonic Range Sensor (HC-SR04 emulation)
+         Topic: /gazebo/ultrasonic_clean  (sensor_msgs/Range)
+         Max range: 3.0 m, FOV: 0.26 rad (15°), Rate: 20 Hz -->
+    <gazebo reference="ultrasonic_link">
+      <sensor type="ray" name="ultrasonic_sensor">
         <pose>0 0 0 0 0 0</pose>
         <visualize>true</visualize>
         <update_rate>20</update_rate>
         <ray>
           <scan>
             <horizontal>
-              <samples>360</samples>
+              <samples>1</samples>
               <resolution>1</resolution>
-              <min_angle>-3.14159</min_angle>
-              <max_angle>3.14159</max_angle>
+              <min_angle>-0.13</min_angle>
+              <max_angle>0.13</max_angle>
             </horizontal>
           </scan>
           <range>
-            <min>0.10</min>
-            <max>10.0</max>
+            <min>0.02</min>
+            <max>3.0</max>
             <resolution>0.01</resolution>
           </range>
           <noise>
             <type>gaussian</type>
             <mean>0.0</mean>
-            <stddev>0.001</stddev>
+            <stddev>0.005</stddev>
           </noise>
         </ray>
-        <plugin name="gazebo_ros_laser_controller" filename="libgazebo_ros_laser.so">
-          <topicName>/gazebo/lidar_clean</topicName>
-          <frameName>lidar_link</frameName>
+        <plugin name="ultrasonic_range_controller" filename="libgazebo_ros_range.so">
+          <topicName>/gazebo/ultrasonic_clean</topicName>
+          <frameName>ultrasonic_link</frameName>
+          <radiationType>ultrasonic</radiationType>
+          <fov>0.26</fov>
+          <minDistance>0.02</minDistance>
+          <maxDistance>3.0</maxDistance>
+          <gaussianNoise>0.005</gaussianNoise>
+          <updateRate>20</updateRate>
         </plugin>
       </sensor>
     </gazebo>

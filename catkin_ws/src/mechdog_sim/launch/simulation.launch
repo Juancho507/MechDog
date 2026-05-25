@@ -95,6 +95,8 @@
   <node if="$(arg debug)" name="tf_monitor" pkg="tf" type="tf_monitor" output="screen"/>
   
   <!-- Topic monitoring -->
+  <node if="$(arg debug)" name="rostopic_hz_ultrasonic" pkg="rostopic" type="rostopic" 
+        args="hz /mechdog/ultrasonic" output="screen"/>
   <node if="$(arg debug)" name="rostopic_hz_scan" pkg="rostopic" type="rostopic" 
         args="hz /mechdog/scan" output="screen"/>
   

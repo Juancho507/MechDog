@@ -18,7 +18,7 @@ navigation:
     map: "map"  # Global fixed frame
     odom: "odom"  # Odometry frame
     base: "base_footprint"  # Robot base frame
-    lidar: "lidar_link"  # Sensor frame
+    sensor: "ultrasonic_link"  # Sensor frame
     
   # Robot footprint (for collision checking)
   footprint:

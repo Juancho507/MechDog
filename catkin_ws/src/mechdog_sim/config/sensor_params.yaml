@@ -1,48 +1,43 @@
 # Sensor Parameters Configuration
-# Defines the exact specifications of MechDog's sensors for simulation fidelity
+# HC-SR04 Ultrasonic Range Sensor (single forward-facing beam)
 
 sensors:
-  # LIDAR/Laser Scanner Configuration
-  lidar:
-    type: "ray"  # Gazebo sensor type
-    name: "mechdog_lidar"
-    frame_id: "lidar_link"
-    
+  # Ultrasonic Range Sensor Configuration
+  ultrasonic:
+    type: "range"
+    name: "mechdog_ultrasonic"
+    frame_id: "ultrasonic_link"
+
     # Publishing configuration
     topics:
-      raw: "/gazebo/lidar_clean"  # Clean sensor data from Gazebo
-      noisy: "/mechdog/scan"  # Post-processed with noise injection
-      
-    # Physical parameters
-    update_rate: 20.0  # Hz
-    samples: 360  # Number of ray samples
-    resolution: 1.0  # Angular resolution
-    
-    # Angular range
-    angle:
-      min: -3.14159265  # radians (-180 degrees)
-      max: 3.14159265   # radians (+180 degrees)
-      
+      raw: "/gazebo/ultrasonic_clean"
+      noisy: "/mechdog/ultrasonic"
+      scan: "/mechdog/scan"
+
+    # Physical parameters (HC-SR04)
+    update_rate: 20.0
+    fov: 0.26
+    radiation_type: "ultrasonic"
+
     # Distance range
     range:
-      min: 0.10  # meters
-      max: 10.0  # meters
-      resolution: 0.01  # meters
-      
+      min: 0.02
+      max: 3.0
+
     # Visualization in Gazebo
     visualize: true
-    
+
   # Odometry Configuration
   odometry:
     frame_id: "odom"
     child_frame_id: "base_footprint"
-    
+
     topics:
       raw: "/gazebo/odom_clean"
       noisy: "/mechdog/odom"
-      
-    update_rate: 50.0  # Hz
-    
+
+    update_rate: 50.0
+
     # Covariance matrices (6x6 for pose, 6x6 for twist)
     pose_covariance:
       [0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -51,7 +46,7 @@ sensors:
        0.0, 0.0, 0.0, 1e6, 0.0, 0.0,
        0.0, 0.0, 0.0, 0.0, 1e6, 0.0,
        0.0, 0.0, 0.0, 0.0, 0.0, 0.03]
-       
+
     twist_covariance:
       [0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
        0.0, 0.001, 0.0, 0.0, 0.0, 0.0,
@@ -59,23 +54,14 @@ sensors:
        0.0, 0.0, 0.0, 1e6, 0.0, 0.0,
        0.0, 0.0, 0.0, 0.0, 1e6, 0.0,
        0.0, 0.0, 0.0, 0.0, 0.0, 0.03]
-       
-  # IMU Configuration (optional, for future expansion)
-  imu:
-    enabled: false
-    frame_id: "imu_link"
-    topics:
-      raw: "/gazebo/imu_clean"
-      noisy: "/mechdog/imu"
-    update_rate: 100.0  # Hz
-    
+
 # TF Broadcasting
 tf:
-  publish_rate: 50.0  # Hz
+  publish_rate: 50.0
   frames:
     - parent: "odom"
       child: "base_footprint"
     - parent: "base_footprint"
       child: "base_link"
     - parent: "base_link"
-      child: "lidar_link"
+      child: "ultrasonic_link"

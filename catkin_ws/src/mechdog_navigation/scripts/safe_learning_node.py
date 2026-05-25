@@ -212,23 +212,26 @@ class SafeLearningController:
         if self.current_scan is None or len(self.current_scan.ranges) == 0:
             return float('inf')
             
-        # Consider only forward-facing region (e.g., ±30 degrees)
+        # Consider only forward-facing region.
+        # For multi-ray LIDAR: take 15 % of rays on each side (front sector).
+        # For single-ray ultrasonic: take the single ray directly.
         num_ranges = len(self.current_scan.ranges)
-        front_sector = int(num_ranges * 0.15)  # 15% of scan on each side
-        
-        # Get ranges in front sector
-        front_ranges = (
-            list(self.current_scan.ranges[:front_sector]) + 
-            list(self.current_scan.ranges[-front_sector:])
-        )
-        
+        if num_ranges <= 1:
+            front_ranges = list(self.current_scan.ranges)
+        else:
+            front_sector = max(1, int(num_ranges * 0.15))
+            front_ranges = (
+                list(self.current_scan.ranges[:front_sector]) +
+                list(self.current_scan.ranges[-front_sector:])
+            )
+
         # Filter valid ranges.
-        # The LIDAR sits inside the robot body; forward-facing rays hit the front
-        # legs at ~0.13-0.15 m.  Use a 6 cm buffer above range_min (0.10 m) so
-        # that self-hits (≤ 0.16 m) are excluded before safety evaluation.
+        # The robot legs appear at ~0.13-0.15 m in a multi-ray LIDAR; use a 6 cm
+        # buffer above range_min to exclude self-hits.  For a forward-only
+        # ultrasonic this filter is mostly a no-op but kept for uniformity.
         _range_min_cutoff = self.current_scan.range_min + 0.06
         valid_ranges = [
-            r for r in front_ranges 
+            r for r in front_ranges
             if _range_min_cutoff < r <= min(self.current_scan.range_max, self.param_scan_range)
         ]
         

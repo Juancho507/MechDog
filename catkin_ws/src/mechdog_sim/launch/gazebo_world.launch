@@ -56,8 +56,8 @@
     <param name="use_gui" value="false"/>
   </node>
   
-  <!-- Static transform publishers for sensors (if needed) -->
-  <node pkg="tf" type="static_transform_publisher" name="base_to_laser"
-        args="0 0 0 0 0 0 base_link lidar_link 100"/>
+  <!-- Static transform from base_link to ultrasonic_link -->
+  <node pkg="tf" type="static_transform_publisher" name="base_to_ultrasonic"
+        args="0 0 0 0 0 0 base_link ultrasonic_link 100"/>
         
 </launch>

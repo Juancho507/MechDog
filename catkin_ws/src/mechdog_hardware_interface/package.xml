@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>mechdog_hardware_interface</name>
+  <version>1.0.0</version>
+  <description>
+    MechDog Hardware Abstraction Layer (HAL)
+    Bridges Hiwonder-based physical quadruped ↔ ROS navigation stack.
+    Converts /cmd_vel → Hiwonder API, and I2C sonar → /mechdog/ultrasonic + /mechdog/scan.
+  </description>
+
+  <maintainer email="mechdog@example.com">MechDog Team</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+</package>

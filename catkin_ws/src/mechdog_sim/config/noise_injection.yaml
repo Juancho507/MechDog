@@ -1,85 +1,39 @@
 # Noise Injection Configuration for Sim-to-Real Gap Mitigation
-# Injects artificial noise to virtual sensors to emulate real-world conditions
+# Injects artificial noise to emulate HC-SR04 ultrasonic imperfections
 
 noise_injection:
-  # LIDAR sensor noise
-  lidar:
+  # Ultrasonic range sensor noise (HC-SR04)
+  ultrasonic:
     enabled: true
     gaussian_noise:
       mean: 0.0
-      stddev: 0.01  # meters (1cm standard deviation)
-    outlier_probability: 0.02  # 2% chance of outlier reading
+      stddev: 0.01  # meters (1cm)
+    outlier_probability: 0.01  # 1% chance of spurious reading
     outlier_range:
-      min: 0.05  # meters
-      max: 0.15  # meters
-    dropout_probability: 0.01  # 1% chance of missing reading
-    angular_noise:
-      mean: 0.0
-      stddev: 0.005  # radians (~0.3 degrees)
-      
+      min: 0.5
+      max: 3.0
+    dropout_probability: 0.02  # 2% chance of max-range reading (no echo)
+
   # Odometry noise (wheel slippage, friction)
   odometry:
     enabled: true
     position_noise:
       x:
         mean: 0.0
-        stddev: 0.005  # meters
+        stddev: 0.005
       y:
         mean: 0.0
-        stddev: 0.005  # meters
+        stddev: 0.005
       theta:
         mean: 0.0
-        stddev: 0.01  # radians (~0.57 degrees)
+        stddev: 0.01
     velocity_noise:
       linear:
         mean: 0.0
-        stddev: 0.02  # m/s
+        stddev: 0.02
       angular:
         mean: 0.0
-        stddev: 0.05  # rad/s
+        stddev: 0.05
     drift:
-      linear: 0.001  # Cumulative drift per second (m/s)
-      angular: 0.002  # Cumulative drift per second (rad/s)
-      
-  # IMU noise (if applicable)
-  imu:
-    enabled: false  # Set to true if IMU is used
-    gyroscope:
-      mean: 0.0
-      stddev: 0.01  # rad/s
-    accelerometer:
-      mean: 0.0
-      stddev: 0.1  # m/s^2
-    orientation:
-      mean: 0.0
-      stddev: 0.005  # radians
-      
-  # Ground friction variations
-  ground:
-    enabled: true
-    friction_coefficient:
-      nominal: 0.8
-      variation: 0.2  # Random variation +/- 0.2
-      change_frequency: 2.0  # Hz - how often friction changes
-      
-  # Actuator delays and imperfections
-  actuators:
-    enabled: true
-    command_delay:
-      mean: 0.05  # seconds (50ms delay)
-      stddev: 0.01  # seconds
-    response_lag:
-      time_constant: 0.1  # seconds (first-order lag)
-    saturation:
-      linear_vel_max: 1.0  # m/s
-      angular_vel_max: 1.5  # rad/s
-      
-  # Processing/computation delays
-  computation:
-    enabled: true
-    sensor_processing_delay:
-      mean: 0.02  # seconds (20ms)
-      stddev: 0.005  # seconds
-    planning_cycle_jitter:
-      mean: 0.0
-      stddev: 0.01  # seconds (10ms jitter)
+      linear: 0.001
+      angular: 0.002
