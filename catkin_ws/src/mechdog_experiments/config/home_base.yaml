@@ -1,0 +1,27 @@
+# Home Base / Good Point Configuration
+# Define el "punto bueno" al que el robot puede retornar si falla
+
+home_base:
+  enabled: true
+
+  # Posicion inicial (se actualiza al spawnear el robot)
+  position:
+    x: 0.0
+    y: 0.0
+    tolerance: 0.2
+
+  # Comportamiento en fallo
+  on_failure:
+    enabled: true
+    trigger_after_recoveries: 3
+    publish_return_goal: true
+    topic: "/mechdog/goal"
+    status_topic: "/mechdog_experiments/home_base_status"
+
+  # Zona segura alrededor del home
+  safe_zone_radius: 1.0
+
+  # Visualizacion
+  visualization:
+    publish_marker: true
+    marker_topic: "/mechdog_experiments/home_base_marker"

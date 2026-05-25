@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="scenarios" default="simple,medium,complex"/>
+  <arg name="algorithms" default="astar,bfs"/>
+  <arg name="trials" default="3"/>
+  <arg name="output_dir" default="/tmp/mechdog_experiments"/>
+
+  <rosparam param="experiment/algorithms">[$(arg algorithms)]</rosparam>
+  <rosparam param="experiment/scenarios">[$(arg scenarios)]</rosparam>
+  <rosparam param="experiment/trials_per_scenario">$(arg trials)</rosparam>
+
+  <node name="experiment_runner" pkg="mechdog_experiments" type="experiment_runner.py" output="screen" required="true">
+    <param name="~topics/goal" value="/mechdog/goal"/>
+    <param name="~topics/status" value="/mechdog/navigation_status"/>
+    <param name="~goal_tolerance" value="0.3"/>
+    <param name="~max_timeout" value="120.0"/>
+    <param name="~trials_per_scenario" value="$(arg trials)"/>
+    <param name="~output_dir" value="$(arg output_dir)"/>
+    <param name="~pkg_path" value="$(find mechdog_experiments)"/>
+    <param name="~config_path" value="$(find mechdog_experiments)/config/scenarios.yaml"/>
+    <param name="~home_base/enabled" value="true"/>
+    <param name="~home_base/return_on_failure" value="true"/>
+  </node>
+
+  <node name="home_base_node" pkg="mechdog_experiments" type="home_base_node.py" output="screen">
+    <param name="~enabled" value="true"/>
+    <param name="~position/x" value="0.0"/>
+    <param name="~position/y" value="0.0"/>
+    <param name="~position/tolerance" value="0.2"/>
+    <param name="~on_failure/trigger_after_recoveries" value="3"/>
+    <param name="~safe_zone_radius" value="1.0"/>
+  </node>
+
+  <node name="metrics_aggregator" pkg="mechdog_experiments" type="metrics_aggregator.py" output="screen">
+    <param name="~output_dir" value="$(arg output_dir)"/>
+  </node>
+</launch>

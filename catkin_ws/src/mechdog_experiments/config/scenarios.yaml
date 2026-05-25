@@ -1,0 +1,145 @@
+# Escenarios de obstaculos para experimentos
+# Cada escenario define objetos dispersos que el robot debe esquivar
+# NO son laberintos - son campos abiertos con obstaculos
+
+scenarios:
+
+  simple:
+    description: "3 obstaculos - escenario basico para validacion"
+    map_size: [10, 10]
+    robot_spawn: [0.0, 0.0, 0.0]
+    home_base: [0.0, 0.0]
+    goals:
+      - [8.0, 0.0]
+    obstacles:
+      - type: box
+        pose: [3.0, 0.8, 0.15, 0, 0, 0]
+        size: [0.4, 0.4, 0.3]
+        color: "Gazebo/Red"
+      - type: cylinder
+        pose: [5.0, -0.6, 0.2, 0, 0, 0]
+        radius: 0.2
+        length: 0.4
+        color: "Gazebo/Blue"
+      - type: box
+        pose: [7.0, 0.4, 0.15, 0, 0, 0.3]
+        size: [0.3, 0.5, 0.3]
+        color: "Gazebo/Green"
+
+  medium:
+    description: "8 obstaculos - escenario de dificultad media"
+    map_size: [12, 12]
+    robot_spawn: [0.0, 0.0, 0.0]
+    home_base: [0.0, 0.0]
+    goals:
+      - [10.0, 1.0]
+    obstacles:
+      - type: box
+        pose: [2.0, 0.5, 0.15, 0, 0, 0]
+        size: [0.4, 0.4, 0.3]
+        color: "Gazebo/Red"
+      - type: cylinder
+        pose: [3.5, -1.0, 0.2, 0, 0, 0]
+        radius: 0.2
+        length: 0.4
+        color: "Gazebo/Blue"
+      - type: box
+        pose: [5.0, 0.3, 0.2, 0, 0, 0.5]
+        size: [0.5, 0.3, 0.4]
+        color: "Gazebo/Green"
+      - type: sphere
+        pose: [6.0, -0.8, 0.15, 0, 0, 0]
+        radius: 0.2
+        color: "Gazebo/Yellow"
+      - type: cylinder
+        pose: [7.5, 0.7, 0.15, 0, 0, 0]
+        radius: 0.15
+        length: 0.3
+        color: "Gazebo/Purple"
+      - type: box
+        pose: [8.5, -0.5, 0.15, 0, 0, -0.4]
+        size: [0.35, 0.35, 0.3]
+        color: "Gazebo/Red"
+      - type: sphere
+        pose: [9.5, 0.2, 0.12, 0, 0, 0]
+        radius: 0.15
+        color: "Gazebo/Blue"
+      - type: cylinder
+        pose: [4.0, 1.5, 0.2, 0, 0, 0]
+        radius: 0.25
+        length: 0.4
+        color: "Gazebo/Green"
+
+  complex:
+    description: "15 obstaculos - escenario complejo con obstaculos densos"
+    map_size: [15, 15]
+    robot_spawn: [0.0, 0.0, 0.0]
+    home_base: [0.0, 0.0]
+    goals:
+      - [12.0, 1.5]
+    obstacles:
+      - type: box
+        pose: [1.5, 0.6, 0.15, 0, 0, 0]
+        size: [0.4, 0.4, 0.3]
+        color: "Gazebo/Red"
+      - type: cylinder
+        pose: [2.5, -1.2, 0.2, 0, 0, 0]
+        radius: 0.2
+        length: 0.4
+        color: "Gazebo/Blue"
+      - type: box
+        pose: [3.8, 0.8, 0.2, 0, 0, 0.5]
+        size: [0.5, 0.3, 0.4]
+        color: "Gazebo/Green"
+      - type: sphere
+        pose: [4.2, -0.6, 0.15, 0, 0, 0]
+        radius: 0.2
+        color: "Gazebo/Yellow"
+      - type: cylinder
+        pose: [5.5, 1.0, 0.15, 0, 0, 0]
+        radius: 0.15
+        length: 0.3
+        color: "Gazebo/Purple"
+      - type: box
+        pose: [6.0, -1.0, 0.15, 0, 0, -0.4]
+        size: [0.35, 0.35, 0.3]
+        color: "Gazebo/Red"
+      - type: sphere
+        pose: [7.2, 0.3, 0.12, 0, 0, 0]
+        radius: 0.15
+        color: "Gazebo/Blue"
+      - type: cylinder
+        pose: [7.8, -0.8, 0.2, 0, 0, 0]
+        radius: 0.25
+        length: 0.4
+        color: "Gazebo/Green"
+      - type: box
+        pose: [9.0, 0.7, 0.15, 0, 0, 0.2]
+        size: [0.3, 0.4, 0.3]
+        color: "Gazebo/Yellow"
+      - type: sphere
+        pose: [9.5, -0.3, 0.1, 0, 0, 0]
+        radius: 0.12
+        color: "Gazebo/Red"
+      - type: cylinder
+        pose: [10.5, 1.2, 0.18, 0, 0, 0]
+        radius: 0.18
+        length: 0.35
+        color: "Gazebo/Blue"
+      - type: box
+        pose: [11.0, -0.7, 0.2, 0, 0, -0.3]
+        size: [0.5, 0.3, 0.4]
+        color: "Gazebo/Green"
+      - type: sphere
+        pose: [8.0, 1.5, 0.12, 0, 0, 0]
+        radius: 0.15
+        color: "Gazebo/Purple"
+      - type: cylinder
+        pose: [4.5, 1.8, 0.2, 0, 0, 0]
+        radius: 0.2
+        length: 0.4
+        color: "Gazebo/Yellow"
+      - type: box
+        pose: [6.8, -1.5, 0.15, 0, 0, 0.6]
+        size: [0.4, 0.4, 0.3]
+        color: "Gazebo/Red"

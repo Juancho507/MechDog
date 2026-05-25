@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="scenario" default="simple"/>
+  <arg name="algorithm" default="astar"/>
+  <arg name="trials" default="3"/>
+  <arg name="gui" default="false"/>
+  <arg name="rviz" default="false"/>
+
+  <arg name="pkg_dir" value="$(find mechdog_experiments)"/>
+
+  <group if="$(eval arg('scenario') == 'simple')">
+    <param name="world_file" value="$(find mechdog_experiments)/worlds/scenario_simple.world"/>
+  </group>
+  <group if="$(eval arg('scenario') == 'medium')">
+    <param name="world_file" value="$(find mechdog_experiments)/worlds/scenario_medium.world"/>
+  </group>
+  <group if="$(eval arg('scenario') == 'complex')">
+    <param name="world_file" value="$(find mechdog_experiments)/worlds/scenario_complex.world"/>
+  </group>
+
+  <node name="experiment_runner" pkg="mechdog_experiments" type="experiment_runner.py" output="screen">
+    <param name="~topics/goal" value="/mechdog/goal"/>
+    <param name="~topics/status" value="/mechdog/navigation_status"/>
+    <param name="~goal_tolerance" value="0.3"/>
+    <param name="~max_timeout" value="120.0"/>
+    <param name="~trials_per_scenario" value="$(arg trials)"/>
+    <param name="~algorithms" value="[$(arg algorithm)]"/>
+    <param name="~scenarios" value="[$(arg scenario)]"/>
+    <param name="~output_dir" value="/tmp/mechdog_experiments"/>
+    <param name="~pkg_path" value="$(find mechdog_experiments)"/>
+    <param name="~config_path" value="$(find mechdog_experiments)/config/scenarios.yaml"/>
+    <param name="~home_base/enabled" value="true"/>
+    <param name="~home_base/return_on_failure" value="true"/>
+  </node>
+
+  <node name="home_base_node" pkg="mechdog_experiments" type="home_base_node.py" output="screen">
+    <param name="~enabled" value="true"/>
+    <param name="~position/x" value="0.0"/>
+    <param name="~position/y" value="0.0"/>
+    <param name="~position/tolerance" value="0.2"/>
+    <param name="~on_failure/trigger_after_recoveries" value="3"/>
+    <param name="~on_failure/topic" value="/mechdog/goal"/>
+    <param name="~on_failure/status_topic" value="/mechdog_experiments/home_base_status"/>
+    <param name="~visualization/marker_topic" value="/mechdog_experiments/home_base_marker"/>
+    <param name="~safe_zone_radius" value="1.0"/>
+  </node>
+
+  <node name="metrics_aggregator" pkg="mechdog_experiments" type="metrics_aggregator.py" output="screen">
+    <param name="~topics/odom" value="/mechdog/odom"/>
+    <param name="~topics/scan" value="/mechdog/scan"/>
+    <param name="~topics/map" value="/mechdog/map"/>
+    <param name="~topics/safety_status" value="/mechdog/safety_status"/>
+    <param name="~topics/navigation_status" value="/mechdog/navigation_status"/>
+    <param name="~topics/emergency_stop" value="/mechdog/emergency_stop"/>
+    <param name="~topics/global_plan" value="/mechdog/global_plan"/>
+    <param name="~output_dir" value="/tmp/mechdog_experiments"/>
+  </node>
+</launch>

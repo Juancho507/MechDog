@@ -1,0 +1,56 @@
+# Configuracion global de experimentos
+# Controla como se ejecutan las pruebas de comparacion A* vs BFS
+
+experiment:
+  # Algoritmos a comparar
+  algorithms:
+    - name: "astar"
+      label: "A* (A-Star)"
+      enabled: true
+    - name: "bfs"
+      label: "BFS (Breadth-First Search)"
+      enabled: true
+
+  # Escenarios a probar
+  scenarios:
+    - "simple"
+    - "medium"
+    - "complex"
+
+  # Repeticiones por cada combinacion algoritmo-escenario
+  trials_per_scenario: 5
+
+  # Timeout maximo por prueba (segundos)
+  max_timeout: 120.0
+
+  # Goal tolerance para considerar que llego
+  goal_tolerance: 0.3
+
+  # Metrics a recolectar
+  metrics:
+    - "execution_time"
+    - "path_length"
+    - "nodes_explored"
+    - "map_coverage"
+    - "emergency_stops"
+    - "recovery_attempts"
+    - "success_rate"
+    - "collision_avoidance_rate"
+
+  # Visualizacion
+  visualization:
+    record_trajectory: true
+    publish_path_markers: true
+    marker_topic: "/mechdog_experiments/path_markers"
+
+  # Output
+  output:
+    results_dir: "/tmp/mechdog_experiments"
+    report_filename: "experiment_report.html"
+    data_filename: "results.json"
+
+  # Home base / good point
+  home_base:
+    enabled: true
+    return_on_failure: true
+    max_recovery_before_return: 3

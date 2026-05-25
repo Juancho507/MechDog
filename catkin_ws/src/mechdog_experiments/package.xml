@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>mechdog_experiments</name>
+  <version>1.0.0</version>
+  <description>
+    MechDog Experiments Package - Framework de experimentacion para comparacion
+    de algoritmos de navegacion (A* y BFS). Genera escenarios con objetos,
+    ejecuta pruebas, recolecta metricas, y genera reportes HTML.
+    Usa mechdog_navigation como dependencia para los planificadores.
+  </description>
+
+  <maintainer email="mechdog@example.com">MechDog Team</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>visualization_msgs</depend>
+
+  <depend>mechdog_navigation</depend>
+
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>roslaunch</exec_depend>
+
+  <export>
+  </export>
+</package>

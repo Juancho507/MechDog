@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="config_path" default="$(find mechdog_experiments)/config/scenarios.yaml"/>
+  <arg name="output_dir" default="$(find mechdog_experiments)/worlds"/>
+
+  <node name="scenario_builder" pkg="mechdog_experiments" type="scenario_builder.py" output="screen" required="true">
+    <param name="~config_path" value="$(arg config_path)"/>
+    <param name="~output_dir" value="$(arg output_dir)"/>
+  </node>
+</launch>

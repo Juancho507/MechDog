@@ -1,46 +1,50 @@
 # MechDog — Robot Cuadrúpedo Autónomo
 
-> ROS 1 Noetic · Gazebo Classic · Navegación Autónoma · Visualización Web noVNC
+> ROS 1 Noetic · Gazebo Classic · Navegación Autónoma · noVNC · Experimentación
 
 ---
 
 ## Tabla de Contenidos
 
 1. [Arquitectura del sistema](#1-arquitectura-del-sistema)
-2. [Estructura del repositorio](#2-estructura-del-repositorio)
-3. [Inicio rápido](#3-inicio-rápido)
-4. [Salida esperada al correr el proyecto](#4-salida-esperada-al-correr-el-proyecto)
-5. [Enviar un goal de navegación](#5-enviar-un-goal-de-navegación)
-6. [Referencia de topics ROS](#6-referencia-de-topics-ros)
-7. [Arquitectura de los paquetes](#7-arquitectura-de-los-paquetes)
-8. [Troubleshooting](#8-troubleshooting)
+2. [Arquitectura Docker](#2-arquitectura-docker)
+3. [Estructura del repositorio](#3-estructura-del-repositorio)
+4. [Inicio rápido](#4-inicio-rápido)
+   - [Opción A: Multi-servicio (docker compose)](#opción-a-multi-servicio-recomendada)
+   - [Opción B: Script todo-en-uno (start.sh)](#opción-b-script-todo-en-uno-startsh)
+5. [Salida esperada](#5-salida-esperada-al-correr-el-proyecto)
+6. [Enviar un goal de navegación](#6-enviar-un-goal-de-navegación)
+7. [Experimentación](#7-experimentación)
+8. [Referencia de topics ROS](#8-referencia-de-topics-ros)
+9. [Arquitectura de los paquetes](#9-arquitectura-de-los-paquetes)
+10. [Troubleshooting](#10-troubleshooting)
 
 ---
 
 ## 1. Arquitectura del Sistema
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  Docker Container  (mechdog_viz)                                │
-│                                                                 │
-│  ┌────────────┐   ┌──────────────┐   ┌────────────────────┐   │
-│  │  Gazebo    │   │  mechdog_sim │   │ mechdog_navigation │   │
-│  │  Classic   │──▶│  (sensores)  │──▶│  (5 nodos A*/DWA)  │   │
-│  │  (robot    │   │  noise inj.  │   │  safe learning     │   │
-│  │  + LIDAR)  │   │  P3D odom    │   │  occupancy grid    │   │
-│  └────────────┘   └──────────────┘   └────────────────────┘   │
-│         │                                      │                │
-│         ▼                                      ▼                │
-│  /gazebo/lidar_clean              /mechdog/cmd_vel_raw          │
-│  /gazebo/odom_clean               /mechdog/navigation_status    │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Xvfb :0 → x11vnc :5900 → websockify :6080              │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ Puerto 6080
-                    Browser: http://localhost:6080/vnc.html
+┌──────────────────────────────────────────────────────────────────┐
+│                        DOCKER HOST                               │
+│                                                                  │
+│  ┌──────────┐   ┌────────────┐   ┌──────────────┐               │
+│  │ roscore  │   │ simulation │   │ navigation   │               │
+│  │ :11311   │◀──│ (Gazebo)   │──▶│ (5 nodos)    │               │
+│  │ ROS      │   │ mechdog_sim│   │ mechdog_nav  │               │
+│  │ Master   │   │ noise,odom │   │ A*,DWA,safe  │               │
+│  └────┬─────┘   └─────┬──────┘   └──────┬───────┘               │
+│       │               │                  │                       │
+│       │               ▼                  ▼                       │
+│       │        ┌──────────────────────────────┐                  │
+│       │        │      mechdog_viz (noVNC)     │                  │
+│       │        │  Xvfb → x11vnc → websockify  │                  │
+│       │        │  Gazebo GUI + RViz visual    │                  │
+│       │        └──────────┬───────────────────┘                  │
+│       │                   │ Puerto 6080                          │
+│       └───────────────────┼──────────────────────────────────────┘
+│                           ▼                                       │
+│                   Browser: localhost:6080/vnc.html                │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Flujo de datos de sensores
@@ -60,25 +64,66 @@ Gazebo (LIDAR plugin) ─▶ /gazebo/lidar_clean ─▶ noise_injector ──▶
 
 ---
 
-## 2. Estructura del Repositorio
+## 2. Arquitectura Docker
+
+El sistema se compone de **4 servicios principales** definidos en `docker-compose.yml`:
+
+| Servicio | Imagen (target) | Puerto | Rol | ¿Debe quedar abierto? |
+|----------|----------------|--------|-----|-----------------------|
+| `roscore` | `builder` | — (host) | ROS Master (`roscore`) | **Sí** — debe estar corriendo siempre |
+| `simulation` | `builder` | — (host) | Gazebo + sensores + ruido | **Sí** — debe estar corriendo siempre |
+| `navigation` | `builder` | — (host) | Stack navegación (5 nodos) | **Sí** — debe estar corriendo siempre |
+| `mechdog_viz` | `visualizer` | `6080` | noVNC + Gazebo GUI + RViz | Opcional — solo para ver la simulación |
+
+Además hay servicios **legacy** (perfil `--profile legacy`) para la arquitectura anterior con PyBullet:
+- `solver`, `visualize`, `train` — requieren `Dockerfile.pybullet` (ya no existe)
+
+### Dependencia entre servicios
+
+```
+roscore ◀── simulation ◀── navigation
+                ▲
+          mechdog_viz (visualización web)
+```
+
+Los servicios `simulation` y `navigation` dependen de `roscore` y se conectan via `network_mode: host`.
+
+### ¿Qué contenedores deben estar abiertos?
+
+- **Mínimo para que funcione**: `roscore` + `simulation` + `navigation`
+- **Para ver la simulación**: agregar `mechdog_viz`
+- **Todos deben mantenerse corriendo** — si alguno muere, el sistema deja de funcionar
+
+---
+
+## 3. Estructura del Repositorio
 
 ```
 MechDog/
-├── Dockerfile                     # Multi-stage build (3 etapas)
-├── docker-compose.yml             # Servicios Docker
-├── start.sh                       # Script de arranque desde el host
-├── start_vnc.sh                   # Entrypoint del contenedor (VNC)
+├── Dockerfile                     # Multi-stage build (base → builder → visualizer)
+├── docker-compose.yml             # 4 servicios ROS + legacy PyBullet
+├── start.sh                       # Script de arranque desde el host (all/sim/nav/stop/status)
+├── start_vnc.sh                   # Entrypoint del contenedor visualizer (Xvfb + x11vnc + noVNC)
+├── requirements.txt               # Solo para referencia legacy (PyBullet)
 ├── catkin_ws/
-│   ├── launch_all.sh              # Arranque completo dentro del contenedor
+│   ├── launch_all.sh              # Arranque todo-en-uno dentro del contenedor
+│   ├── metrics_output/            # Métricas generadas por experimentos
 │   └── src/
 │       ├── mechdog_description/   # URDF/Xacro del robot
-│       │   └── urdf/mechdog.urdf.xacro
-│       ├── mechdog_sim/           # Simulación y sensores
+│       │   ├── urdf/
+│       │   │   ├── mechdog.urdf.xacro       # Modelo físico (SIM + REAL)
+│       │   │   └── mechdog_gazebo.xacro     # Plugins Gazebo (P3D, LIDAR)
+│       │   ├── launch/display.launch
+│       │   ├── config/joint_limits.yaml
+│       │   └── rviz/
+│       │       ├── display.rviz
+│       │       └── display.rviz
+│       ├── mechdog_sim/           # Simulación Gazebo + sensores
 │       │   ├── scripts/
 │       │   │   ├── noise_injector_node.py
 │       │   │   ├── sensor_simulator_node.py
 │       │   │   ├── metrics_collector_node.py
-│       │   │   └── spawn_robot.py      ← borra modelo antes de spawn
+│       │   │   └── spawn_robot.py
 │       │   ├── launch/
 │       │   │   ├── simulation.launch
 │       │   │   └── gazebo_world.launch
@@ -87,60 +132,122 @@ MechDog/
 │       │   │   ├── sensor_params.yaml
 │       │   │   └── noise_injection.yaml
 │       │   └── worlds/
+│       │       ├── open_path.world
 │       │       └── open_path_world.world
-│       └── mechdog_navigation/    # Stack de navegación autónoma
+│       ├── mechdog_navigation/    # Stack de navegación (100% portable)
+│       │   ├── scripts/
+│       │   │   ├── global_planner_node.py    (A*)
+│       │   │   ├── local_planner_node.py     (DWA)
+│       │   │   ├── safe_learning_node.py     (frenado predictivo)
+│       │   │   ├── occupancy_grid_node.py    (mapeo bayesiano)
+│       │   │   └── navigation_manager_node.py (máquina de estados)
+│       │   ├── src/mechdog_navigation/__init__.py
+│       │   ├── setup.py
+│       │   ├── launch/
+│       │   │   ├── navigation.launch
+│       │   │   ├── planning.launch
+│       │   │   ├── mapping.launch
+│       │   │   └── safe_learning.launch
+│       │   └── config/
+│       │       ├── navigation.yaml
+│       │       ├── global_planner.yaml
+│       │       ├── local_planner.yaml
+│       │       ├── occupancy_grid.yaml
+│       │       ├── safe_learning.yaml
+│       │       └── environments/
+│       │           ├── simulation.yaml
+│       │           └── real_hardware.yaml
+│       └── mechdog_experiments/   # Framework de experimentación
 │           ├── scripts/
-│           │   ├── global_planner_node.py    (A*)
-│           │   ├── local_planner_node.py     (DWA)
-│           │   ├── safe_learning_node.py     (frenado activo)
-│           │   ├── occupancy_grid_node.py    (mapeo bayesiano)
-│           │   └── navigation_manager_node.py (máquina de estados)
+│           │   ├── experiment_runner.py
+│           │   ├── scenario_builder.py
+│           │   ├── home_base_node.py
+│           │   ├── metrics_aggregator.py
+│           │   └── report_generator.py
 │           ├── launch/
-│           │   └── navigation.launch
-│           └── config/
-│               ├── navigation.yaml
-│               └── environments/
-│                   ├── simulation.yaml
-│                   └── real_hardware.yaml
+│           │   ├── experiments.launch
+│           │   ├── run_experiments.launch
+│           │   ├── build_scenarios.launch
+│           │   └── generate_report.launch
+│           ├── config/
+│           │   ├── experiment_config.yaml
+│           │   ├── scenarios.yaml
+│           │   └── home_base.yaml
+│           ├── worlds/
+│           │   ├── scenario_simple.world
+│           │   ├── scenario_medium.world
+│           │   └── scenario_complex.world
+│           └── report/
+│               ├── index.html
+│               └── assets/
+│                   ├── charts.js
+│                   └── style.css
 └── docs/
+    ├── 00_PROJECT_STRUCTURE.md
+    ├── 01_ARCHITECTURE_ROS_RULES.md
+    ├── 02_PROJECT_WORKFLOW.md
+    ├── 03_SIM_TO_REAL_STRATEGY.md
+    └── AI_CONTEXT.md
 ```
 
 ---
 
-## 3. Inicio Rápido
+## 4. Inicio Rápido
 
 ### Prerequisito: Docker Desktop instalado y corriendo
 
-### Paso 1 — Construir la imagen (solo la primera vez)
+### Opción A: Multi-servicio (recomendada)
+
+Inicia cada servicio por separado. Todos deben quedar corriendo.
+
+#### Paso 1 — Construir la imagen
 
 ```bash
 docker compose build mechdog_viz
 ```
 
-> Tarda ~5-8 minutos. Descarga ROS Noetic + Gazebo + dependencias.
+> Tarda ~5-8 minutos. Descarga ROS Noetic + Gazebo + dependencias y compila el workspace.
 
-### Paso 2 — Iniciar el contenedor
+#### Paso 2 — Iniciar el ROS Master
+
+```bash
+docker compose up -d roscore
+```
+
+#### Paso 3 — Iniciar la simulación (Gazebo)
+
+```bash
+docker compose up -d simulation
+```
+
+#### Paso 4 — Iniciar la navegación
+
+```bash
+docker compose up -d navigation
+```
+
+#### Paso 5 — (Opcional) Abrir la interfaz gráfica
 
 ```bash
 docker compose up -d mechdog_viz
 ```
 
-### Paso 3 — Lanzar el sistema completo
-
-```bash
-docker compose exec mechdog_viz bash /app/catkin_ws/launch_all.sh
-```
-
-### Paso 4 — Abrir la interfaz gráfica
-
 En tu navegador: **http://localhost:6080/vnc.html** → click **Connect**
 
-Verás el escritorio virtual con Gazebo y RViz corriendo.
+Verás el escritorio virtual con Gazego y RViz.
 
-### Paso 5 — Enviar un goal de navegación
+#### Paso 6 — Verificar que todo funciona
 
 ```bash
-docker compose exec mechdog_viz bash -c "
+docker compose exec roscore bash -c "source /app/catkin_ws/devel/setup.bash && rosnode list"
+```
+
+Debes ver ~13 nodos activos.
+
+#### Paso 7 — Enviar un goal de navegación
+
+```bash
+docker compose exec roscore bash -c "
   source /app/catkin_ws/devel/setup.bash &&
   rostopic pub /mechdog/goal geometry_msgs/PoseStamped \
   '{header: {frame_id: odom}, pose: {position: {x: 3.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}' \
@@ -148,42 +255,56 @@ docker compose exec mechdog_viz bash -c "
 "
 ```
 
-### Paso 6 — Parar todo
+#### Paso 8 — Parar todo
 
 ```bash
-docker compose stop mechdog_viz
+docker compose stop roscore simulation navigation mechdog_viz
 ```
 
 ---
 
-## 4. Salida Esperada al Correr el Proyecto
+### Opción B: Script todo-en-uno (start.sh)
 
-### Al ejecutar `launch_all.sh`
+Usa el contenedor `mechdog_viz` para correr todo internamente (Gazebo + navegación en un solo contenedor).
 
-```
-[1/5] Limpiando procesos anteriores...
-      Listo
-[2/5] Iniciando Gazebo (modo headless)...
-[3/5] Esperando Gazebo...
-      Gazebo listo (Xs)
-[4/5] Esperando odometria del robot...
-      Robot spawneado OK
-[5/5] Iniciando stack de navegacion...
+```bash
+# Construir (solo la primera vez)
+docker compose build mechdog_viz
 
-═══════════════════════════════════════════════
-  Sistema listo. Nodos activos:
-  /gazebo
-  /global_planner
-  /local_planner
-  /navigation_manager
-  /noise_injector
-  /occupancy_grid_mapper
-  /safe_learning
-  /sensor_simulator
-═══════════════════════════════════════════════
+# Arrancar todo (simulación + navegación + VNC)
+./start.sh all
+
+# O pasos individuales:
+./start.sh sim     # Solo simulación
+./start.sh nav     # Solo navegación
+./start.sh status  # Ver estado del sistema
+./start.sh stop    # Detener todo
 ```
 
-> El mensaje `navigation_startup_info process has died` es **normal e inofensivo** — es un publicador informativo de una sola vez cuya cadena con espacios falla en el parser de roslaunch.
+Luego abre **http://localhost:6080/vnc.html** en tu navegador.
+
+> `start.sh` automáticamente levanta el contenedor `mechdog_viz`, limpia procesos anteriores, espera a Gazebo, espera la odometría del robot y lanza la navegación.
+
+---
+
+## 5. Salida Esperada al Correr el Proyecto
+
+### Al ejecutar `./start.sh all`
+
+```
+╔══════════════════════════════════════╗
+║   MechDog — Arranque Completo        ║
+╚══════════════════════════════════════╝
+
+[OK] Contenedor mechdog_viz activo
+Limpiando procesos anteriores...
+[OK] Limpieza completada
+Iniciando simulacion Gazebo...
+Esperando Gazebo.....      Gazebo listo (5x2s)
+Esperando spawn del robot.....      Robot spawneado, odometria activa
+Iniciando stack de navegacion...
+Esperando nodos de navegacion......      [OK] 5 nodos de navegacion activos
+```
 
 ### Lista completa de nodos activos (13 nodos)
 
@@ -206,9 +327,9 @@ docker compose stop mechdog_viz
 
 ---
 
-## 5. Enviar un Goal de Navegación
+## 6. Enviar un Goal de Navegación
 
-### Comando
+### Con el script start.sh
 
 ```bash
 docker compose exec mechdog_viz bash -c "
@@ -219,94 +340,83 @@ docker compose exec mechdog_viz bash -c "
 "
 ```
 
-### Salida esperada del comando
+### Con servicios separados
+
+```bash
+docker compose exec roscore bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  rostopic pub /mechdog/goal geometry_msgs/PoseStamped \
+  '{header: {frame_id: odom}, pose: {position: {x: 3.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}' \
+  --once
+"
+```
+
+### Salida esperada
 
 ```
 publishing and latching message for 3.0 seconds
 ```
 
-Eso es todo lo que imprime el comando — es correcto. El trabajo real ocurre en los nodos de navegación.
+### Verificar estado después del goal
 
-### Qué verificar después de enviar el goal
-
-**1. Estado del Navigation Manager** (debe decir `"moving"`):
 ```bash
+# Estado del navigation manager (debe decir "moving")
 docker compose exec mechdog_viz bash -c "
   source /app/catkin_ws/devel/setup.bash &&
   rostopic echo /mechdog/navigation_status -n 1
 "
-# Salida esperada:
-# data: "moving"
-```
 
-**2. Plan global generado (A\*)**:
-```bash
-docker compose exec mechdog_viz bash -c "
-  source /app/catkin_ws/devel/setup.bash &&
-  rostopic echo /mechdog/global_plan -n 1 | head -8
-"
-# Salida esperada (fragmento):
-# header:
-#   frame_id: "map"
-# poses:
-#   - (60 waypoints aprox.)
-```
-
-**3. Velocidades del Local Planner (DWA)**:
-```bash
+# Velocidades del DWA
 docker compose exec mechdog_viz bash -c "
   source /app/catkin_ws/devel/setup.bash &&
   rostopic echo /mechdog/cmd_vel_raw -n 1
 "
-# Salida esperada:
-# linear:
-#   x: 0.2-0.5  (velocidad hacia adelante en m/s)
-#   y: 0.0
-#   z: 0.0
-# angular:
-#   x: 0.0
-#   y: 0.0
-#   z: -0.3 a 0.3  (giro en rad/s)
-```
 
-**4. Estado de seguridad (Safe Learning)**:
-```bash
+# Estado de seguridad
 docker compose exec mechdog_viz bash -c "
   source /app/catkin_ws/devel/setup.bash &&
   rostopic echo /mechdog/safety_status -n 1
 "
-# Salida esperada (robot libre de obstáculos):
-# data: "safe"
-```
-
-**5. En el log de navegación** (`/tmp/nav.log` dentro del contenedor):
-```
-[INFO]: Received global path with 60 waypoints
-[INFO]: Path planned in 0.000s, length: 60 waypoints
-[INFO]: Received global path with 60 waypoints
-...
-```
-
-### Secuencia completa de verificación
-
-```bash
-# Abrir una sola terminal y monitorear todo:
-docker compose exec mechdog_viz bash -c "
-  source /app/catkin_ws/devel/setup.bash &&
-  rostopic echo /mechdog/navigation_status &
-  rostopic hz /mechdog/cmd_vel_raw &
-  wait
-"
-# Salida esperada:
-# data: "moving"
-# ---
-# subscribed to [/mechdog/cmd_vel_raw]
-# average rate: 20.000 Hz
 ```
 
 ---
 
-## 6. Referencia de Topics ROS
+## 7. Experimentación
+
+El paquete `mechdog_experiments` permite ejecutar baterías de pruebas automatizadas para evaluar el stack de navegación.
+
+### Escenarios disponibles
+
+| Escenario | Obstáculos | Descripción |
+|-----------|------------|-------------|
+| `simple` | 3 | Curso básico, obstáculos dispersos |
+| `medium` | 8 | Curso medio, pasillos estrechos |
+| `complex` | 15 | Curso denso, maniobras evasivas |
+
+### Ejecutar experimentos
+
+```bash
+# Con start.sh (todo en un contenedor)
+docker compose exec mechdog_viz bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  roslaunch mechdog_experiments run_experiments.launch
+"
+```
+
+### Generar reporte
+
+```bash
+docker compose exec mechdog_viz bash -c "
+  source /app/catkin_ws/devel/setup.bash &&
+  roslaunch mechdog_experiments generate_report.launch
+"
+```
+
+Los reportes se generan en `catkin_ws/src/mechdog_experiments/report/`.
+
+---
+
+## 8. Referencia de Topics ROS
 
 ### Topics de Entrada (el robot recibe)
 
@@ -339,7 +449,7 @@ docker compose exec mechdog_viz bash -c "
 
 ---
 
-## 7. Arquitectura de los Paquetes
+## 9. Arquitectura de los Paquetes
 
 ### mechdog_description
 
@@ -351,6 +461,7 @@ Modelo físico del robot en formato URDF/Xacro.
   - Tipo: ray, 360°, 0.1-10m, 20Hz
   - Plugin: `libgazebo_ros_laser.so` → `/gazebo/lidar_clean`
 - **Odometría**: Plugin `libgazebo_ros_p3d.so` → `/gazebo/odom_clean`
+- **Archivos**: `mechdog.urdf.xacro` (modelo), `mechdog_gazebo.xacro` (plugins Gazebo)
 
 ### mechdog_sim
 
@@ -364,8 +475,10 @@ Capa de simulación que conecta Gazebo con el stack de navegación.
 | `metrics_collector_node.py` | Guarda métricas en `/app/metrics_output/` |
 
 **Parámetros de ruido** (`noise_injection.yaml`):
-- LIDAR: σ=0.01m, 1% outliers, 1% dropouts
-- Odometría: σ=0.005m, drift 0.001m/s, σ_θ=0.01rad
+- LIDAR: σ=0.01m, 2% outliers, 1% dropouts, ruido angular 0.005rad
+- Odometría: σ=0.005m, drift 0.001m/s, σ_θ=0.002rad/s, drift angular 0.002rad/s
+- Actuadores: retardo 50ms, respuesta de primer orden
+- Suelo: variación de fricción 0.2 a 2Hz
 
 ### mechdog_navigation
 
@@ -373,9 +486,9 @@ Stack de navegación autónoma 100% portable (sin dependencias de Gazebo).
 
 ```
 /mechdog/goal ──▶ navigation_manager ──▶ global_planner (A*)
-                                    ├──▶ local_planner (DWA)
-                                    ├──▶ safe_learning (freno activo)
-                                    └──▶ occupancy_grid_mapper
+                                     ├──▶ local_planner (DWA)
+                                     ├──▶ safe_learning (freno activo)
+                                     └──▶ occupancy_grid_mapper
 ```
 
 | Nodo | Algoritmo | Frecuencia |
@@ -391,9 +504,46 @@ Stack de navegación autónoma 100% portable (sin dependencias de Gazebo).
 d_freno = v² / (2×a) + v × t_reacción   × factor_seguridad
 ```
 
+**Múltiples launch files** para arrancar componentes individuales:
+
+| Launch File | Componentes |
+|-------------|-------------|
+| `navigation.launch` | Stack completo (5 nodos) |
+| `planning.launch` | Solo global + local planner |
+| `mapping.launch` | Solo occupancy grid |
+| `safe_learning.launch` | Solo capa de seguridad |
+
+### mechdog_experiments
+
+Framework para ejecutar experimentos automatizados de navegación.
+
+| Script | Función |
+|--------|---------|
+| `experiment_runner.py` | Ejecuta trials (algoritmo × escenario × réplicas) |
+| `scenario_builder.py` | Construye escenarios en Gazebo desde YAML |
+| `home_base_node.py` | Gestiona punto de origen y recuperación |
+| `metrics_aggregator.py` | Agrega métricas multi-trial (éxito, tiempo, colisiones) |
+| `report_generator.py` | Genera reporte HTML con gráficas |
+
+**Métricas registradas por trial**:
+- Tasa de éxito / fallo
+- Tiempo hasta alcanzar goal
+- Distancia recorrida vs distancia óptima
+- Número de colisiones
+- Tiempo en estado `planning` vs `moving`
+- Suavidad de trayectoria (jerks)
+
+**Archivos de configuración**:
+
+| Archivo | Propósito |
+|---------|-----------|
+| `experiment_config.yaml` | Algoritmos (A*, BFS), escenarios, réplicas, timeout |
+| `scenarios.yaml` | Definición de obstáculos por escenario |
+| `home_base.yaml` | Posición de home y comportamiento de recovery |
+
 ---
 
-## 8. Troubleshooting
+## 10. Troubleshooting
 
 ### Error: `entity already exists` o `Address already in use`
 
@@ -401,12 +551,11 @@ d_freno = v² / (2×a) + v × t_reacción   × factor_seguridad
 
 **Solución**:
 ```bash
-# Opción A (recomendada): reiniciar el contenedor
-docker compose stop mechdog_viz
-docker compose up -d mechdog_viz
-docker compose exec mechdog_viz bash /app/catkin_ws/launch_all.sh
+# Opción A (recomendada): reiniciar con start.sh
+./start.sh stop
+./start.sh all
 
-# Opción B: limpiar procesos sin reiniciar
+# Opción B: limpiar procesos en el contenedor
 docker compose exec mechdog_viz bash -c "killall -9 gzserver gzclient rosmaster roslaunch python3 2>/dev/null; sleep 3"
 ```
 
@@ -422,7 +571,7 @@ docker compose exec mechdog_viz bash -c "
 "
 ```
 
-**Solución**: El plugin P3D de Gazebo tarda ~10s en activarse tras el spawn. Espera un poco más. Si persiste, verifica que el robot fue spawneado:
+**Solución**: El plugin P3D de Gazebo tarda ~10s en activarse tras el spawn. Si persiste:
 ```bash
 docker compose exec mechdog_viz bash -c "
   source /app/catkin_ws/devel/setup.bash &&
@@ -440,7 +589,7 @@ docker compose exec mechdog_viz bash -c "
 
 **Causa**: Docker Desktop en Windows descarta el mapeo de puertos con `network_mode: host`.
 
-**Solución**: Ya corregido en `docker-compose.yml` — `mechdog_viz` usa bridge networking con puertos explícitos.
+**Solución**: `mechdog_viz` usa bridge networking con puertos explícitos.
 
 **Verificación**:
 ```bash
@@ -452,15 +601,13 @@ docker ps --filter "name=mechdog_viz" --format "{{.Ports}}"
 
 **Causa**: El topic `/mechdog/odom` no tiene datos — el robot no sabe dónde está.
 
-**Verificación rápida**:
+**Verificación**:
 ```bash
 docker compose exec mechdog_viz bash -c "
   source /app/catkin_ws/devel/setup.bash &&
   timeout 2 rostopic echo /mechdog/odom -n 1 | head -4
 "
 ```
-
-Si no hay salida, reiniciar la simulación con `launch_all.sh`.
 
 ### Comandos de diagnóstico útiles
 
@@ -476,6 +623,9 @@ docker compose exec mechdog_viz bash -c "tail -f /tmp/sim.log"
 
 # Ver logs de navegación en tiempo real
 docker compose exec mechdog_viz bash -c "tail -f /tmp/nav.log"
+
+# Ver logs de experimentos
+docker compose exec mechdog_viz bash -c "tail -f /tmp/experiments.log"
 
 # Parar el robot inmediatamente
 docker compose exec mechdog_viz bash -c "

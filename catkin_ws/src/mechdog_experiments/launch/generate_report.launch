@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="results_dir" default="/tmp/mechdog_experiments"/>
+  <arg name="output_dir" default="/tmp/mechdog_experiments/report"/>
+
+  <node name="report_generator" pkg="mechdog_experiments" type="report_generator.py" output="screen" required="true">
+    <param name="~results_dir" value="$(arg results_dir)"/>
+    <param name="~output_dir" value="$(arg output_dir)"/>
+    <param name="~data_file" value="results.json"/>
+  </node>
+</launch>
