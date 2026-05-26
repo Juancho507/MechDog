@@ -25,6 +25,9 @@ class DWALocalPlanner:
         self.current_odom = None
         self.current_scan = None
         self.current_velocity = Twist()
+        self._smoothed_vx = 0.0
+        self._smoothed_wz = 0.0
+        self._smooth_alpha = 0.3  # lower = smoother but more lag
         
         # Publishers
         self.cmd_vel_pub = rospy.Publisher(
@@ -71,11 +74,13 @@ class DWALocalPlanner:
         self.param_path_distance_bias = rospy.get_param(
             '~local_planner/dwa/scoring/path_distance_bias', 32.0)
         self.param_goal_distance_bias = rospy.get_param(
-            '~local_planner/dwa/scoring/goal_distance_bias', 20.0)
+            '~local_planner/dwa/scoring/goal_distance_bias', 48.0)
         self.param_occdist_scale = rospy.get_param(
-            '~local_planner/dwa/scoring/occdist_scale', 0.02)
+            '~local_planner/dwa/scoring/occdist_scale', 10.0)
         self.param_speed_bonus = rospy.get_param(
             '~local_planner/dwa/scoring/speed_bonus', 10.0)
+        self.param_progress_bonus = rospy.get_param(
+            '~local_planner/dwa/scoring/progress_bonus', 20.0)
         
         # Obstacle avoidance
         self.param_min_obstacle_dist = rospy.get_param(
@@ -83,7 +88,7 @@ class DWALocalPlanner:
         
         # Goal tolerance
         self.param_xy_goal_tolerance = rospy.get_param(
-            '~local_planner/goal_tolerance/xy_goal_tolerance', 0.1)
+            '~local_planner/goal_tolerance/xy_goal_tolerance', 0.2)
         self.param_yaw_goal_tolerance = rospy.get_param(
             '~local_planner/goal_tolerance/yaw_goal_tolerance', 0.1)
         
@@ -103,10 +108,30 @@ class DWALocalPlanner:
         self.param_control_frequency = rospy.get_param(
             '~local_planner/control_frequency', 20.0)
         
+    def prune_path(self, path):
+        """Remove trailing waypoints that coincide with the robot's current
+        position so the path starts ahead of the robot.  Otherwise cross-track
+        ~0 for any trajectory near the robot, and the DWA prefers staying put."""
+        if self.current_odom is None or len(path.poses) < 2:
+            return path
+        rx = self.current_odom.pose.pose.position.x
+        ry = self.current_odom.pose.pose.position.y
+        tol_sq = self.param_xy_goal_tolerance * self.param_xy_goal_tolerance
+        keep = 0
+        for i, pose in enumerate(path.poses):
+            dx = pose.pose.position.x - rx
+            dy = pose.pose.position.y - ry
+            if dx*dx + dy*dy > tol_sq:
+                keep = i
+                break
+        if keep > 0 and keep < len(path.poses) - 1:
+            path.poses = path.poses[keep:]
+        return path
+
     def global_path_callback(self, msg):
         """Receive global path"""
-        self.global_path = msg
-        rospy.logdebug("Received global path with %d waypoints", len(msg.poses))
+        self.global_path = self.prune_path(msg)
+        rospy.logdebug("Received global path with %d waypoints", len(self.global_path.poses))
         
     def odom_callback(self, msg):
         """Receive odometry"""
@@ -214,16 +239,16 @@ class DWALocalPlanner:
         return trajectory
         
     def check_collision(self, trajectory):
-        """Check if trajectory collides with obstacles"""
-        if self.current_scan is None:
+        """Check if ANY point along the trajectory collides with obstacles"""
+        if self.current_scan is None or len(trajectory) == 0:
             return False
-            
-        # Only check the trajectory endpoint for performance
-        if len(trajectory) == 0:
-            return False
-        x, y, theta = trajectory[-1]
-        min_dist = self.get_min_obstacle_distance(x, y)
-        return min_dist < self.param_min_obstacle_dist
+        
+        for pt in trajectory:
+            x, y, _ = pt
+            d = self.get_min_obstacle_distance(x, y)
+            if d < self.param_min_obstacle_dist:
+                return True
+        return False
         
     def get_min_obstacle_distance(self, x, y):
         """Distance from trajectory point (x,y) to nearest obstacle in world frame.
@@ -260,71 +285,85 @@ class DWALocalPlanner:
         return math.hypot(x - obs_x, y - obs_y)
         
     def score_trajectory(self, trajectory, v, w):
-        """Score trajectory based on distance to path, goal, and obstacles"""
+        """Score trajectory based on path progress, goal distance, obstacles"""
         if len(trajectory) == 0:
             return -float('inf')
             
-        # Distance to global path
-        path_dist = self.distance_to_path(trajectory)
+        # Path progress (cross-track + how far along the path the endpoint falls)
+        cross_track, path_progress = self.path_progress(trajectory[-1])
         
         # Distance to goal
         goal_dist = self.distance_to_goal(trajectory[-1])
         
-        # Distance to obstacles
+        # Distance to obstacles (only penalize within braking range)
         obstacle_dist = self.get_min_obstacle_distance(trajectory[-1][0], trajectory[-1][1])
-        
-        # Compute score with forward velocity bonus [δ·vx]
+        total_path_len = self._path_length()
+        braking = max(abs(v), 0.05) * 0.5 + 0.1
+        if obstacle_dist < braking:
+            obstacle_cost = self.param_occdist_scale * (braking - obstacle_dist) / braking
+        else:
+            obstacle_cost = 0.0
+
         score = (
-            self.param_path_distance_bias * (1.0 / (path_dist + 0.1)) +
-            self.param_goal_distance_bias * (1.0 / (goal_dist + 0.1)) +
-            self.param_occdist_scale * obstacle_dist +
+            self.param_path_distance_bias * (1.0 / (cross_track + 0.1)) +
+            self.param_progress_bonus * (path_progress / max(total_path_len, 1.0)) +
+            self.param_goal_distance_bias * (1.0 / (goal_dist + 0.1)) -
+            obstacle_cost +
             self.param_speed_bonus * v
         )
         
         return score
         
-    def distance_to_path(self, trajectory):
-        """Compute cross-track distance from trajectory END to the nearest
-        path line segment, not just waypoints. This way following the path
-        between waypoints yields path_dist ≈ 0 regardless of discretization.
+    def path_progress(self, point):
+        """Return (cross_track, progress_index) where progress_index is how far
+        along the global path the projection of `point` falls, measured in
+        cumulative segment indices (e.g. 4.3 = 4.3 segments from start).
+        This rewards forward progress along the path, not just proximity to it.
         """
         if self.global_path is None or len(self.global_path.poses) < 2:
-            return float('inf')
-        if len(trajectory) == 0:
-            return float('inf')
-            
-        end_x, end_y, _ = trajectory[-1]
-        min_dist = float('inf')
+            return (float('inf'), 0.0)
+        end_x, end_y = point[0], point[1]
         poses = self.global_path.poses
-        
+        best_dist = float('inf')
+        best_progress = 0.0
+
         for i in range(len(poses) - 1):
             x1 = poses[i].pose.position.x
             y1 = poses[i].pose.position.y
             x2 = poses[i + 1].pose.position.x
             y2 = poses[i + 1].pose.position.y
-            
-            # Vector along segment
             dx = x2 - x1
             dy = y2 - y1
             seg_len_sq = dx*dx + dy*dy
             if seg_len_sq < 1e-12:
                 continue
-            
-            # Project endpoint onto segment line, clamped to [0, 1]
             t = ((end_x - x1)*dx + (end_y - y1)*dy) / seg_len_sq
             if t < 0.0:
-                closest_x, closest_y = x1, y1
+                cx, cy = x1, y1
+                t_clamped = 0.0
             elif t > 1.0:
-                closest_x, closest_y = x2, y2
+                cx, cy = x2, y2
+                t_clamped = 1.0
             else:
-                closest_x = x1 + t*dx
-                closest_y = y1 + t*dy
-            
-            dist = math.hypot(end_x - closest_x, end_y - closest_y)
-            if dist < min_dist:
-                min_dist = dist
-                
-        return min_dist
+                cx = x1 + t*dx
+                cy = y1 + t*dy
+                t_clamped = t
+            d = math.hypot(end_x - cx, end_y - cy)
+            if d < best_dist:
+                best_dist = d
+                best_progress = i + t_clamped
+        return (best_dist, best_progress)
+
+    def _path_length(self):
+        if self.global_path is None or len(self.global_path.poses) < 2:
+            return 1.0
+        total = 0.0
+        poses = self.global_path.poses
+        for i in range(len(poses) - 1):
+            dx = poses[i+1].pose.position.x - poses[i].pose.position.x
+            dy = poses[i+1].pose.position.y - poses[i].pose.position.y
+            total += math.hypot(dx, dy)
+        return total
         
     def distance_to_goal(self, point):
         """Compute distance from point to goal"""
@@ -349,10 +388,12 @@ class DWALocalPlanner:
         return dist < self.param_xy_goal_tolerance
         
     def publish_velocity(self, v, w):
-        """Publish velocity command"""
+        """Publish velocity command with exponential smoothing to prevent oscillation"""
+        self._smoothed_vx = self._smooth_alpha * v + (1.0 - self._smooth_alpha) * self._smoothed_vx
+        self._smoothed_wz = self._smooth_alpha * w + (1.0 - self._smooth_alpha) * self._smoothed_wz
         cmd = Twist()
-        cmd.linear.x = v
-        cmd.angular.z = w
+        cmd.linear.x = self._smoothed_vx
+        cmd.angular.z = self._smoothed_wz
         self.cmd_vel_pub.publish(cmd)
         
     def publish_local_plan(self, trajectory):

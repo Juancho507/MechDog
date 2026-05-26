@@ -97,7 +97,7 @@ class NavigationManager:
         
         # Goal handling
         self.param_goal_tolerance = rospy.get_param('navigation/goal_handling/goal_tolerance', 0.1)
-        self.param_goal_timeout = rospy.get_param('navigation/goal_handling/timeout', 60.0)
+        self.param_goal_timeout = rospy.get_param('navigation/goal_handling/timeout', 120.0)
         
         # Recovery
         self.param_recovery_enabled = rospy.get_param('navigation/recovery/enabled', True)

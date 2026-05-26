@@ -34,10 +34,11 @@ local_planner:
     
     # Trajectory scoring weights
     scoring:
-      path_distance_bias: 32.0  # Follow the global path
+      path_distance_bias: 32.0  # Cross-track error weight
       goal_distance_bias: 48.0  # Get closer to goal
-      occdist_scale: 50.0       # Was 0.02 — strongly penalize approaching obstacles
-      speed_bonus: 10.0         # Was 100.0 — don't let speed override safety
+      occdist_scale: 10.0       # Obstacle penalty inside braking distance
+      speed_bonus: 10.0         # Reward for forward velocity
+      progress_bonus: 20.0      # Reward for making forward progress along the path
       
     # Forward simulation
     forward_point_distance: 0.325  # meters - point on robot to use for trajectory sim
@@ -49,7 +50,7 @@ local_planner:
     
   # Goal tolerance
   goal_tolerance:
-    xy_goal_tolerance: 0.1  # meters
+    xy_goal_tolerance: 0.2  # meters
     yaw_goal_tolerance: 0.1  # radians
     latch_xy_goal_tolerance: false
     
