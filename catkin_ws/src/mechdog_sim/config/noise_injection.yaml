@@ -16,7 +16,7 @@ noise_injection:
 
   # Odometry noise (wheel slippage, friction)
   odometry:
-    enabled: true
+    enabled: false
     position_noise:
       x:
         mean: 0.0

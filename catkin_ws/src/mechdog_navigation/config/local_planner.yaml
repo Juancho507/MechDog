@@ -34,10 +34,10 @@ local_planner:
     
     # Trajectory scoring weights
     scoring:
-      path_distance_bias: 24.0  # Weight for staying close to global path
-      goal_distance_bias: 48.0  # Weight for getting closer to goal
-      occdist_scale: 0.02       # Weight for avoiding obstacles
-      speed_bonus: 10.0         # Forward velocity reward [δ] to escape local minima
+      path_distance_bias: 0.5   # Was 24.0, then 2.0 — endpoint eval penaliza avanzar
+      goal_distance_bias: 80.0  # Was 48.0, then 60.0 — objetivo primario
+      occdist_scale: 0.02       # Evitar obstáculos
+      speed_bonus: 100.0        # Was 10.0, then 50.0 — incentivo fuerte para velocidad
       
     # Forward simulation
     forward_point_distance: 0.325  # meters - point on robot to use for trajectory sim

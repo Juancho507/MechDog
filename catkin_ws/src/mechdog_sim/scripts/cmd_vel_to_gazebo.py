@@ -9,8 +9,8 @@ The physical Hiwonder robot does not use this node.
 """
 
 import rospy
-from geometry_msgs.msg import Twist
-from gazebo_msgs.srv import SetModelState, GetModelState
+from geometry_msgs.msg import Twist, Point, Quaternion, Pose
+from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
 
 
@@ -24,9 +24,9 @@ class CmdVelToGazeboBridge:
         self._last_cmd = Twist()
 
         rospy.wait_for_service('/gazebo/set_model_state')
-        rospy.wait_for_service('/gazebo/get_model_state')
         self._set_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
-        self._get_state = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
+
+        self._wait_for_model()
 
         rospy.Subscriber('/cmd_vel', Twist, self._cmd_callback)
 
@@ -37,19 +37,38 @@ class CmdVelToGazeboBridge:
             self.model_name,
         )
 
+    def _wait_for_model(self):
+        dummy = ModelState()
+        dummy.model_name = self.model_name
+        dummy.reference_frame = 'world'
+        for i in range(30):
+            try:
+                self._set_state(dummy)
+                rospy.loginfo('Model %s found after ~%ds', self.model_name, i)
+                return
+            except rospy.ServiceException:
+                rospy.sleep(1.0)
+        rospy.logwarn(
+            'Model %s not found after 30s — bridge will retry on each tick',
+            self.model_name,
+        )
+
     def _cmd_callback(self, msg):
         self._last_cmd = msg
 
     def _apply_cmd(self, event):
         try:
-            current = self._get_state(self.model_name, 'world')
             target = ModelState()
             target.model_name = self.model_name
-            target.pose = current.pose
+            # Identity pose relative to current = no pose change
+            target.pose = Pose(Point(0, 0, 0), Quaternion(0, 0, 0, 1))
             target.twist.linear.x = self._last_cmd.linear.x
             target.twist.linear.y = self._last_cmd.linear.y
             target.twist.angular.z = self._last_cmd.angular.z
-            target.reference_frame = 'world'
+            # reference_frame = model name means Gazebo converts body twist
+            # to world frame automatically using the model's orientation,
+            # so the robot always moves in its own forward direction
+            target.reference_frame = self.model_name
             self._set_state(target)
         except rospy.ServiceException as e:
             rospy.logwarn_throttle(5.0, 'Gazebo service call failed: %s', e)

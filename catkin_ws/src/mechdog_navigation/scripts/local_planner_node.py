@@ -267,24 +267,45 @@ class DWALocalPlanner:
         return score
         
     def distance_to_path(self, trajectory):
-        """Compute distance from trajectory END to the global path (lookahead).
-        
-        Only the last simulated pose is evaluated, so trajectories that
-        actually advance along the path score better than ones that stay
-        at the starting position.
+        """Compute cross-track distance from trajectory END to the nearest
+        path line segment, not just waypoints. This way following the path
+        between waypoints yields path_dist ≈ 0 regardless of discretization.
         """
-        if self.global_path is None or len(self.global_path.poses) == 0:
+        if self.global_path is None or len(self.global_path.poses) < 2:
             return float('inf')
         if len(trajectory) == 0:
             return float('inf')
             
         end_x, end_y, _ = trajectory[-1]
         min_dist = float('inf')
-        for path_pose in self.global_path.poses:
-            dx = end_x - path_pose.pose.position.x
-            dy = end_y - path_pose.pose.position.y
-            dist = math.sqrt(dx**2 + dy**2)
-            min_dist = min(min_dist, dist)
+        poses = self.global_path.poses
+        
+        for i in range(len(poses) - 1):
+            x1 = poses[i].pose.position.x
+            y1 = poses[i].pose.position.y
+            x2 = poses[i + 1].pose.position.x
+            y2 = poses[i + 1].pose.position.y
+            
+            # Vector along segment
+            dx = x2 - x1
+            dy = y2 - y1
+            seg_len_sq = dx*dx + dy*dy
+            if seg_len_sq < 1e-12:
+                continue
+            
+            # Project endpoint onto segment line, clamped to [0, 1]
+            t = ((end_x - x1)*dx + (end_y - y1)*dy) / seg_len_sq
+            if t < 0.0:
+                closest_x, closest_y = x1, y1
+            elif t > 1.0:
+                closest_x, closest_y = x2, y2
+            else:
+                closest_x = x1 + t*dx
+                closest_y = y1 + t*dy
+            
+            dist = math.hypot(end_x - closest_x, end_y - closest_y)
+            if dist < min_dist:
+                min_dist = dist
                 
         return min_dist
         

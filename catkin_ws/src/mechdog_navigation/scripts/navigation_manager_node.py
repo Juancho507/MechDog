@@ -140,6 +140,9 @@ class NavigationManager:
                 self.global_path = msg
                 rospy.loginfo("Received global path with %d waypoints", len(msg.poses))
                 
+                # Reset timeout clock whenever we get a fresh path
+                self.start_time = rospy.Time.now()
+                
                 # Transition to moving state if we were planning
                 if self.current_state == self.STATE_PLANNING:
                     self.set_state(self.STATE_MOVING)
