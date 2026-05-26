@@ -89,6 +89,26 @@ services:
       bash -c "source /app/catkin_ws/devel/setup.bash &&
                roslaunch mechdog_sim simulation.launch"
 
+  # Navigation Stack
+  navigation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - ./catkin_ws:/app/catkin_ws
+    environment:
+      - ROS_HOSTNAME=navigation
+      - ROS_MASTER_URI=http://roscore:11311
+      - PYTHONUNBUFFERED=1
+    networks:
+      - mechdog_net
+    depends_on:
+      - roscore
+    command: >
+      bash -c "source /app/catkin_ws/devel/setup.bash &&
+               roslaunch mechdog_navigation navigation.launch environment:=simulation"
+
   # Websocket Telemetry Bridge for Native Visualization (Foxglove Studio)
   # Access: ws://localhost:9090
   telemetry:

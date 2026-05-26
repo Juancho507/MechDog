@@ -6,7 +6,7 @@
 # Con la red mechdog_net, cada servicio corre en su propio contenedor y se
 # comunican por DNS interno (http://roscore:11311).
 #
-#   ./start.sh all     → roscore + simulación + navegación + VNC (default)
+#   ./start.sh all     → roscore + simulación + navegación + telemetría + VNC (default)
 #   ./start.sh sim     → roscore + simulación + VNC (sin navegación)
 #   ./start.sh nav     → roscore + navegación (sin simulación, requiere Gazebo externo)
 #   ./start.sh stop    → Docker compose down
@@ -96,7 +96,7 @@ show_status() {
     echo ""
 
     # Topics
-    for topic in /clock /mechdog/odom /mechdog/scan /mechdog/ultrasonic /mechdog/navigation_status; do
+    for topic in /clock /mechdog/odom /mechdog/scan /mechdog/ultrasonic /mechdog/map /mechdog/navigation_status; do
       if docker compose exec -T roscore bash -c \
          "source /opt/ros/noetic/setup.bash && timeout 2 rostopic echo ${topic} -n 1 2>/dev/null | grep -q '.'" 2>/dev/null; then
         echo -e "  ${GREEN}✓${NC} ${topic}"
@@ -136,6 +136,7 @@ case "${1:-all}" in
     wait_sim
     docker compose up -d navigation
     wait_nav
+    docker compose up -d telemetry
     docker compose up -d mechdog_viz
     show_status
     ;;
