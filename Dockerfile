@@ -29,6 +29,9 @@ RUN apt-get update && apt-get install -y \
     ros-noetic-gazebo-ros \
     ros-noetic-gazebo-plugins \
     ros-noetic-gazebo-ros-control \
+    ros-noetic-joint-state-publisher-gui \
+    ros-noetic-urdf \
+    ros-noetic-rosbridge-suite \
     # Navigation dependencies
     ros-noetic-navigation \
     ros-noetic-move-base \
@@ -44,6 +47,8 @@ RUN apt-get update && apt-get install -y \
     ros-noetic-joint-state-publisher \
     ros-noetic-joint-state-publisher-gui \
     ros-noetic-urdf \
+    # Websocket telemetry bridge (Foxglove Studio)
+    ros-noetic-rosbridge-suite \
     # Python scientific dependencies
     python3-numpy \
     python3-scipy \
@@ -96,6 +101,8 @@ RUN apt-get update && apt-get install -y \
     # Web VNC client
     novnc \
     websockify \
+    # Terminal emulator (for right-click → Terminal in noVNC)
+    xterm \
     # Network utilities
     net-tools \
     && rm -rf /var/lib/apt/lists/*

@@ -267,17 +267,24 @@ class DWALocalPlanner:
         return score
         
     def distance_to_path(self, trajectory):
-        """Compute minimum distance from trajectory to global path"""
+        """Compute distance from trajectory END to the global path (lookahead).
+        
+        Only the last simulated pose is evaluated, so trajectories that
+        actually advance along the path score better than ones that stay
+        at the starting position.
+        """
         if self.global_path is None or len(self.global_path.poses) == 0:
             return float('inf')
+        if len(trajectory) == 0:
+            return float('inf')
             
+        end_x, end_y, _ = trajectory[-1]
         min_dist = float('inf')
-        for traj_point in trajectory:
-            for path_pose in self.global_path.poses:
-                dx = traj_point[0] - path_pose.pose.position.x
-                dy = traj_point[1] - path_pose.pose.position.y
-                dist = math.sqrt(dx**2 + dy**2)
-                min_dist = min(min_dist, dist)
+        for path_pose in self.global_path.poses:
+            dx = end_x - path_pose.pose.position.x
+            dy = end_y - path_pose.pose.position.y
+            dist = math.sqrt(dx**2 + dy**2)
+            min_dist = min(min_dist, dist)
                 
         return min_dist
         

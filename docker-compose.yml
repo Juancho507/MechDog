@@ -89,25 +89,28 @@ services:
       bash -c "source /app/catkin_ws/devel/setup.bash &&
                roslaunch mechdog_sim simulation.launch"
 
-  # Navigation Stack
-  navigation:
+  # Websocket Telemetry Bridge for Native Visualization (Foxglove Studio)
+  # Access: ws://localhost:9090
+  telemetry:
     build:
       context: .
       dockerfile: Dockerfile
       target: builder
     volumes:
       - ./catkin_ws:/app/catkin_ws
-    environment:
-      - ROS_HOSTNAME=navigation
-      - ROS_MASTER_URI=http://roscore:11311
-      - PYTHONUNBUFFERED=1
     networks:
       - mechdog_net
+    environment:
+      - ROS_HOSTNAME=telemetry
+      - ROS_MASTER_URI=http://roscore:11311
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "9090:9090"
     depends_on:
       - roscore
     command: >
-      bash -c "source /app/catkin_ws/devel/setup.bash &&
-               roslaunch mechdog_navigation navigation.launch environment:=simulation"
+      bash -c "chmod +x /app/catkin_ws/entrypoint_telemetry.sh &&
+               exec /app/catkin_ws/entrypoint_telemetry.sh"
 
   # RViz Visualization (deprecated — use mechdog_viz instead)
   # Kept for backward compatibility; requires X11 forwarding on the host.

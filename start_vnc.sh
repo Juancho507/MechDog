@@ -56,8 +56,60 @@ if ! ps -p $XVFB_PID > /dev/null; then
 fi
 
 # =============================================================================
-# 2. Start Fluxbox (Window Manager)
+# 2. Configure and Start Fluxbox (Window Manager)
 # =============================================================================
+
+# Write a custom right-click menu with a working terminal and ROS shortcuts
+mkdir -p ~/.fluxbox
+
+cat > ~/.fluxbox/menu << 'MENU_EOF'
+[begin] (MechDog)
+  [exec] (Terminal) {xterm -fa 'Monospace' -fs 12 -ls} <>
+  [exec] (RViz) {bash -c "source /opt/ros/noetic/setup.bash && source /app/catkin_ws/devel/setup.bash && QT_X11_NO_MITSHM=1 LIBGL_ALWAYS_SOFTWARE=1 rosrun rviz rviz -d /app/catkin_ws/src/mechdog_description/launch/rviz.rviz"} <>
+  [exec] (Gazebo GUI) {bash -c "source /opt/ros/noetic/setup.bash && GAZEBO_MASTER_URI=http://simulation:11345 LIBGL_ALWAYS_SOFTWARE=1 gzclient"} <>
+  [separator]
+  [submenu] (ROS Info)
+    [exec] (Node list) {xterm -e "bash -c 'source /opt/ros/noetic/setup.bash && rosnode list; echo; echo Press Enter to close...; read'"} <>
+    [exec] (Topic list) {xterm -e "bash -c 'source /opt/ros/noetic/setup.bash && rostopic list; echo; echo Press Enter to close...; read'"} <>
+    [exec] (TF tree) {xterm -e "bash -c 'source /opt/ros/noetic/setup.bash && rosrun tf view_frames; echo TF tree saved; echo Press Enter to close...; read'"} <>
+  [end]
+  [separator]
+  [exec] (Send goal (2,2)) {bash -c "source /opt/ros/noetic/setup.bash && source /app/catkin_ws/devel/setup.bash && python3 -c 'import rospy; from geometry_msgs.msg import PoseStamped; rospy.init_node(\"gp\", anonymous=True); pub = rospy.Publisher(\"/mechdog/goal\", PoseStamped, queue_size=1, latch=True); rospy.sleep(0.5); m = PoseStamped(); m.header.frame_id = \"map\"; m.header.stamp = rospy.Time.now(); m.pose.position.x = 2.0; m.pose.position.y = 2.0; m.pose.orientation.w = 1.0; pub.publish(m); print(\"Goal (2,2) published\")'"} <>
+  [separator]
+  [reconfig] (Reload Config)
+  [restart] (Restart Fluxbox)
+[end]
+MENU_EOF
+
+# Set single workspace, proper toolbar, and no desktop icons
+cat > ~/.fluxbox/init << 'INIT_EOF'
+session.menuFile: ~/.fluxbox/menu
+session.keyFile: ~/.fluxbox/keys
+session.styleFile: /usr/share/fluxbox/styles/ubuntu-light
+session.configVersion: 13
+session.screen0.toolbar.widthPercent: 100
+session.screen0.strftimeFormat: %H:%M
+session.screen0.toolbar.tools: prevworkspace, workspacename, nextworkspace, systemtray, clock
+session.screen0.workspaces: 1
+session.screen0.workspaceNames: MechDog,
+session.screen0.desktopwheeling: false
+session.screen0.desktopMouseWheel: false
+session.screen0.fullMaximization: true
+session.screen0.window.placement: RowCenterPlacement
+session.autoRaise: true
+session.autoRaiseDelay: 250
+session.cacheMax: 2048
+session.cacheLife: 10
+session.colorsPerChannel: 128
+session.doubleClickInterval: 250
+session.focusTabMinWidth: 5
+session.imageDither: true
+session.justify: center
+session.tabs: true
+session.tabWidth: 64
+INIT_EOF
+
+log_info "Fluxbox configured: 1 workspace, custom menu with terminal + ROS tools"
 
 log_info "Starting Fluxbox window manager..."
 fluxbox &

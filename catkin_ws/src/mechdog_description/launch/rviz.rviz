@@ -1,89 +1,55 @@
-<?xml version="1.0" ?>
-<VisualizationManager>
-  <Class name="rviz/Displays" name="Displays">
-    <Property name="Named Top Values">
-      <A>
-        <A name="Alpha">1.0</A>
-        <A name="Bottom Top">0.5</A>
-        <A name="Font Size">9</A>
-        <A name="Left From Edge">0.025</A>
-        <A name="Line count">10</A>
-        <A name="Names">
-          <AA/>
-        </A>
-        <A name="Right From Edge">0.025</A>
-        <A name="Top From Edge">0.025</A>
-        <A name="Value Names">
-          <AA/>
-        </A>
-        <A name="Values">
-          <AA/>
-        </A>
-        <A name="Visible">1</A>
-      </A>
-    </Property>
-    <Property name="Named Top List">
-      <A/>
-    </Property>
-  </Class>
-  <Class name="rviz/Selection" name="Selection"/>
-  <Class name="rviz/Views" name="Views">
-    <Property name="Current">
-      <Value name="Current">
-        <Class name="rviz/OrbitView" name="Current">
-          <Property name="Distance">5</Property>
-          <Property name="Enable Stereo Rendering">
-            <Bool value="False"/>
-          </Property>
-          <Property name="Focal Point">
-            <A>
-              <A name="X">0.0</A>
-              <A name="Y">0.0</A>
-              <A name="Z">0.0</A>
-            </A>
-          </Property>
-          <Property name="Focal Shape Fixed Size">0.1</Property>
-          <Property name="Focal Shape Type">Sphere</Property>
-          <Property name="Pitch">0.6544984694970703</Property>
-          <Property name="Yaw">0.7853981256484985</Property>
-        </Class>
-      </Value>
-    </Property>
-    <Property name="Named Left">
-      <Value/>
-    </Property>
-    <Property name="Named Right">
-      <Value/>
-    </Property>
-  </Class>
-  <Class name="rviz/Global Options" name="Global Options">
-    <Property name="Back Ground Color">
-      <A>
-        <A name="B">48</A>
-        <A name="G">48</A>
-        <A name="R">48</A>
-      </A>
-    </Property>
-    <Property name="Fixed Frame">odom</Property>
-    <Property name="Frame Timeout">15</Property>
-  </Class>
-  <Class name="rviz/Manager" name="Manager">
-    <Property name="Geometry">
-      <A>
-        <A name="Height">768</A>
-        <A name="Width">1024</A>
-        <A name="X">338</A>
-        <A name="Y">138</A>
-      </A>
-    </Property>
-    <Property name="Log File">
-      <A>
-        <A name="Filename">/tmp/rviz_logging_config</A>
-      </A>
-    </Property>
-    <Property name="Save Shape Properties">True</Property>
-    <Property name="Splash Screen">True</Property>
-    <Property name="Splash Screen Delay">1</Property>
-  </Class>
-</VisualizationManager>
-EOF
+Panels:
+  []
+Preferences:
+  PromptSaveOnExit: true
+Toolbars:
+  toolButtonStyle: 2
+Visualization Manager:
+  Class: ""
+  Displays: ~
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Default Light: true
+    Fixed Frame: map
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_plugin_tutorials/PlantFlag
+      Flags:
+        - Name: Flag 0
+        - Name: Flag 1
+        - Name: Flag 2
+        - Name: Flag 3
+  Value: true
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 10
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Field of View: 0.7853981852531433
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.7853981852531433
+      Target Frame: <Fixed Frame>
+      Yaw: 0.7853981852531433
+    Saved: ~
+Window Geometry:
+  Height: 331
+  Hide Left Dock: false
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd0000000000000160000000f000000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Width: 352
+  X: 1415
+  Y: 51

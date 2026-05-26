@@ -77,7 +77,7 @@ show_status() {
   echo ""
 
   # Contenedores
-  for svc in roscore simulation navigation mechdog_viz; do
+  for svc in roscore simulation navigation telemetry mechdog_viz; do
     if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "mechdog-${svc}-1"; then
       ok "${svc} — activo"
     else
