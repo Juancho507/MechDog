@@ -56,11 +56,11 @@ def _inflate_map(grid: OccupancyGrid, radius: int) -> OccupancyGrid:
             if dy < 0:
                 mask[dy:, :] = False
             elif dy > 0:
-                mask[:h - dy, :] = False
+                mask[:dy, :] = False
             if dx < 0:
                 mask[:, dx:] = False
             elif dx > 0:
-                mask[:, :w - dx] = False
+                mask[:, :dx] = False
             inflated[mask] = 100
     result = copy.deepcopy(grid)
     result.data = inflated.flatten().tolist()

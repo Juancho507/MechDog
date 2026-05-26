@@ -9,7 +9,7 @@ import rospy
 import numpy as np
 from nav_msgs.msg import OccupancyGrid, Odometry, MapMetaData
 from sensor_msgs.msg import LaserScan
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, PoseStamped
 import math
 import tf
 
@@ -40,6 +40,8 @@ class OccupancyGridMapper:
             self.param_scan_input, LaserScan, self.scan_callback, queue_size=1)
         self.odom_sub = rospy.Subscriber(
             self.param_odom_input, Odometry, self.odom_callback, queue_size=1)
+        self.goal_sub = rospy.Subscriber(
+            '/mechdog/goal', PoseStamped, self.goal_callback)
         
         # Update timer
         self.update_timer = rospy.Timer(
@@ -111,6 +113,12 @@ class OccupancyGridMapper:
         
         rospy.loginfo("Map initialized: %d x %d cells", self.map_width, self.map_height)
         
+    def goal_callback(self, msg):
+        rospy.loginfo("New goal received — resetting occupancy grid")
+        self.initialize_map()
+        # Also reset the pose history so the robot re-explores from scratch
+        self.last_update_pose = None
+
     def odom_callback(self, msg):
         """Receive odometry"""
         new_pose = msg.pose.pose
@@ -199,7 +207,11 @@ class OccupancyGridMapper:
             angle += scan.angle_increment
             
     def ray_trace(self, x0, y0, x1, y1):
-        """Bresenham's line algorithm for ray tracing"""
+        """Bresenham's line algorithm for ray tracing
+        
+        Models the 15° ultrasonic beam as a 3×3 cell block at the endpoint,
+        since the physical sensor sees a cone (not a single ray).
+        """
         # Mark cells along ray as free
         cells = self.bresenham_line(x0, y0, x1, y1)
         
@@ -211,8 +223,12 @@ class OccupancyGridMapper:
             if i < len(cells) - 1:
                 self.update_cell(x, y, free=True)
             else:
-                # Mark end cell as occupied
-                self.update_cell(x, y, free=False)
+                # Mark end cell as occupied (3×3 block for 15° beam width)
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        nx, ny = x + dx, y + dy
+                        if self.is_valid_cell(nx, ny):
+                            self.update_cell(nx, ny, free=False)
                 
     def bresenham_line(self, x0, y0, x1, y1):
         """Bresenham's line algorithm"""

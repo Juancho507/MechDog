@@ -7,8 +7,8 @@
   <xacro:if value="${simulation}">
     <gazebo reference="${prefix}base_link">
       <material>Gazebo/Blue</material>
-      <mu1>0.8</mu1>
-      <mu2>0.8</mu2>
+      <mu1>0.02</mu1>
+      <mu2>0.02</mu2>
     </gazebo>
 
     <gazebo reference="${prefix}ultrasonic_link">

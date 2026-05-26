@@ -25,6 +25,34 @@
     <include>
       <uri>model://ground_plane</uri>
     </include>
+
+    <!-- Test obstacle at (2, 0) -->
+    <model name="obstacle">
+      <static>true</static>
+      <pose>2.0 0.0 0.2 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.4 0.4 0.4</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.4 0.4 0.4</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <name>Gazebo/Red</name>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
     
   </world>
 </sdf>

@@ -1,7 +1,7 @@
 # goal.ps1 — Envía un goal de navegación al robot MechDog
 # Uso: .\goal.ps1 [x] [y]
 # Ej:  .\goal.ps1 2.0 2.0   (default)
-param([double]$x=2.0, [double]$y=2.0)
+param([double]$x=15.0, [double]$y=2.0)
 
 Set-Content -Path "$env:TEMP\goal.py" -Value @"
 import rospy

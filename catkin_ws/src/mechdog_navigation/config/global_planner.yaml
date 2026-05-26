@@ -8,7 +8,7 @@ global_planner:
   # Planning parameters
   planning:
     cell_size: 0.1  # meters (grid resolution)
-    max_planning_time: 5.0  # seconds
+    max_planning_time: 10.0  # seconds
     replan_distance: 0.5  # meters - trigger replanning when deviation > this
     replan_on_obstacle: true  # Replan if new obstacles detected
     
@@ -37,6 +37,7 @@ global_planner:
   # Obstacle inflation
   inflation:
     radius: 0.3  # meters - inflate obstacles by this amount
+    cells: 8     # Was 3 — 3×0.1m=0.3m total (0.15m clearance, radius=0.15m = knee-to-leg clearance). Now 8×0.1m=0.8m total (0.4m clearance).
     cost_factor: 10.0  # Cost multiplier for inflated cells
     
   # Visualization

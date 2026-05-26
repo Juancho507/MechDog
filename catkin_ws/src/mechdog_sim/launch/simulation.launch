@@ -73,7 +73,7 @@
        simulation-only runs; the physical robot uses HAL. -->
   <node name="cmd_vel_to_gazebo" pkg="mechdog_sim" type="cmd_vel_to_gazebo.py" output="screen">
     <param name="model_name" value="mechdog"/>
-    <param name="rate" value="50.0"/>
+    <param name="rate" value="100.0"/>
   </node>
   
   <!-- =============================================== -->

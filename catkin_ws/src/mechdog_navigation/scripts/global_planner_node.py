@@ -31,6 +31,7 @@ class GlobalPlanner:
         self.current_map = None
         self.current_goal = None
         self.robot_grid = None
+        self.last_replan_pos = None
 
         self._tf_buffer = tf2_ros.Buffer()
         self._tf_listener = tf2_ros.TransformListener(self._tf_buffer)
@@ -66,6 +67,8 @@ class GlobalPlanner:
             '~global_planner/topics/plan_output', '/mechdog/global_plan')
         self.param_global_frame = rospy.get_param(
             '~global_planner/frames/global_frame', 'map')
+        self.param_replan_distance = rospy.get_param(
+            'navigation/planning/global_replan_distance', 0.5)
 
     def map_callback(self, msg):
         self.current_map = msg
@@ -76,7 +79,26 @@ class GlobalPlanner:
 
     def replan_callback(self, event):
         if self.current_goal is not None and self.current_map is not None:
-            self.plan_path()
+            pos = self._get_robot_pos()
+            if self.last_replan_pos is None:
+                self.last_replan_pos = pos
+                self.plan_path()
+            else:
+                dx = pos[0] - self.last_replan_pos[0]
+                dy = pos[1] - self.last_replan_pos[1]
+                if (dx*dx + dy*dy) > (self.param_replan_distance * self.param_replan_distance):
+                    self.last_replan_pos = pos
+                    self.plan_path()
+
+    def _get_robot_pos(self):
+        try:
+            t = self._tf_buffer.lookup_transform(
+                self.param_global_frame, 'base_footprint', rospy.Time(0),
+                rospy.Duration(0.5))
+            return (t.transform.translation.x, t.transform.translation.y)
+        except Exception as e:
+            rospy.logwarn_throttle(5.0, "Cannot get robot pose from TF: %s", e)
+            return (0.0, 0.0)
 
     def _get_robot_grid(self):
         try:

@@ -218,19 +218,21 @@ class DWALocalPlanner:
         if self.current_scan is None:
             return False
             
-        for x, y, theta in trajectory:
-            # Check distance to obstacles
-            min_dist = self.get_min_obstacle_distance(x, y)
-            if min_dist < self.param_min_obstacle_dist:
-                return True
-                
-        return False
+        # Only check the trajectory endpoint for performance
+        if len(trajectory) == 0:
+            return False
+        x, y, theta = trajectory[-1]
+        min_dist = self.get_min_obstacle_distance(x, y)
+        return min_dist < self.param_min_obstacle_dist
         
     def get_min_obstacle_distance(self, x, y):
-        """Get minimum distance to obstacles from given position"""
-        # Simplified: use current scan relative to current position
-        # In production, transform scan to given position
+        """Distance from trajectory point (x,y) to nearest obstacle in world frame.
         
+        Previously ignored its arguments and always returned the current scan
+        minimum — this made ALL trajectories appear equally blocked regardless
+        of direction. Now projects the sensor reading into world coordinates
+        and measures distance from the trajectory position to the obstacle.
+        """
         if self.current_scan is None or len(self.current_scan.ranges) == 0:
             return float('inf')
             
@@ -240,7 +242,22 @@ class DWALocalPlanner:
         if len(valid_ranges) == 0:
             return float('inf')
             
-        return min(valid_ranges)
+        r_min = min(valid_ranges)
+        
+        # No obstacle within range
+        if r_min >= self.current_scan.range_max - 0.01:
+            return float('inf')
+        
+        # Project obstacle into world frame using robot's current pose
+        robot_x = self.current_odom.pose.pose.position.x
+        robot_y = self.current_odom.pose.pose.position.y
+        yaw = self.get_yaw_from_quaternion(self.current_odom.pose.pose.orientation)
+        
+        # Obstacle is at (r_min, 0) in sensor frame (forward-facing ultrasonic)
+        obs_x = robot_x + r_min * math.cos(yaw)
+        obs_y = robot_y + r_min * math.sin(yaw)
+        
+        return math.hypot(x - obs_x, y - obs_y)
         
     def score_trajectory(self, trajectory, v, w):
         """Score trajectory based on distance to path, goal, and obstacles"""
