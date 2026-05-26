@@ -104,37 +104,34 @@ class NoiseInjector:
         self.scan_pub.publish(scan)
 
     def odom_callback(self, msg):
-        """Receive ground-truth odometry → publish noisy odometry"""
+        """Receive ground-truth odometry → publish noisy odometry + TF"""
         noisy_odom = copy.deepcopy(msg)
         noisy_odom.header.frame_id = 'odom'
         noisy_odom.child_frame_id = 'base_footprint'
 
-        if not self.odom_enabled:
-            self.odom_pub.publish(noisy_odom)
-            return
+        if self.odom_enabled:
+            dt = (rospy.Time.now() - self.last_odom_time).to_sec()
+            self.last_odom_time = rospy.Time.now()
 
-        dt = (rospy.Time.now() - self.last_odom_time).to_sec()
-        self.last_odom_time = rospy.Time.now()
+            self.odom_drift['x'] += self.odom_linear_drift * dt
+            self.odom_drift['y'] += self.odom_linear_drift * dt
+            self.odom_drift['theta'] += self.odom_angular_drift * dt
 
-        self.odom_drift['x'] += self.odom_linear_drift * dt
-        self.odom_drift['y'] += self.odom_linear_drift * dt
-        self.odom_drift['theta'] += self.odom_angular_drift * dt
+            noisy_odom.pose.pose.position.x += (
+                np.random.normal(0, self.odom_pos_stddev) + self.odom_drift['x'])
+            noisy_odom.pose.pose.position.y += (
+                np.random.normal(0, self.odom_pos_stddev) + self.odom_drift['y'])
 
-        noisy_odom.pose.pose.position.x += (
-            np.random.normal(0, self.odom_pos_stddev) + self.odom_drift['x'])
-        noisy_odom.pose.pose.position.y += (
-            np.random.normal(0, self.odom_pos_stddev) + self.odom_drift['y'])
-
-        theta_noise = np.random.normal(0, self.odom_theta_stddev) + self.odom_drift['theta']
-        z_new = noisy_odom.pose.pose.orientation.z + theta_noise * 0.5
-        z_new = float(np.clip(z_new, -1.0, 1.0))
-        w_new = math.sqrt(max(0.0, 1.0 - z_new ** 2))
-        noisy_odom.pose.pose.orientation.z = z_new
-        noisy_odom.pose.pose.orientation.w = w_new
+            theta_noise = np.random.normal(0, self.odom_theta_stddev) + self.odom_drift['theta']
+            z_new = noisy_odom.pose.pose.orientation.z + theta_noise * 0.5
+            z_new = float(np.clip(z_new, -1.0, 1.0))
+            w_new = math.sqrt(max(0.0, 1.0 - z_new ** 2))
+            noisy_odom.pose.pose.orientation.z = z_new
+            noisy_odom.pose.pose.orientation.w = w_new
 
         self.odom_pub.publish(noisy_odom)
 
-        # Broadcast TF: odom → base_footprint (required by nav stack)
+        # Broadcast TF: odom → base_footprint (required by nav stack + Foxglove)
         t = TransformStamped()
         t.header.stamp = rospy.Time.now()
         t.header.frame_id = 'odom'
