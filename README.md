@@ -1,6 +1,6 @@
 # MechDog — Robot Cuadrúpedo Autónomo
 
-> ROS 1 Noetic · Gazebo Classic · Navegación Autónoma · noVNC · Experimentación
+> ROS 1 Noetic · Gazebo Classic · Navegación Autónoma · Foxglove Studio · noVNC · Experimentación
 
 ---
 
@@ -26,39 +26,54 @@
 ## 1. Arquitectura del Sistema
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                        DOCKER HOST                               │
-│                                                                  │
-│  ┌──────────┐   ┌────────────┐   ┌──────────────┐               │
-│  │ roscore  │   │ simulation │   │ navigation   │               │
-│  │ :11311   │◀──│ (Gazebo)   │──▶│ (5 nodos)    │               │
-│  │ ROS      │   │ mechdog_sim│   │ mechdog_nav  │               │
-│  │ Master   │   │ noise,odom │   │ A*,DWA,safe  │               │
-│  └────┬─────┘   └─────┬──────┘   └──────┬───────┘               │
-│       │               │                  │                       │
-│       │               ▼                  ▼                       │
-│       │        ┌──────────────────────────────┐                  │
-│       │        │      mechdog_viz (noVNC)     │                  │
-│       │        │  Xvfb → x11vnc → websockify  │                  │
-│       │        │  Gazebo GUI + RViz visual    │                  │
-│       │        └──────────┬───────────────────┘                  │
-│       │                   │ Puerto 6080                          │
-│       └───────────────────┼──────────────────────────────────────┘
-│                           ▼                                       │
-│                   Browser: localhost:6080/vnc.html                │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         mechdog_net (bridge)                             │
+│                                                                          │
+│  ┌──────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐  │
+│  │ roscore  │   │  simulation  │   │  navigation  │   │  telemetry   │  │
+│  │ :11311   │◄──┤ Gazebo +     │◄──┤ 6 nodos nav  │   │ rosbridge    │  │
+│  │ ROS      │   │ sensores +   │   │ A*, DWA,     │   │ ws://:9090   │  │
+│  │ Master   │   │ bridge HAL   │   │ safe_learning │   │ Foxglove     │  │
+│  └──────────┘   └──────┬───────┘   └──────────────┘   └──────────────┘  │
+│                        │                                                 │
+│                        ▼                                                 │
+│                 ┌──────────────────┐                                     │
+│                 │ mechdog_viz      │                                     │
+│                 │ noVNC :6080      │                                     │
+│                 │ Xvfb + Fluxbox   │                                     │
+│                 │ Terminal + RViz  │                                     │
+│                 └──────────────────┘                                     │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Visualización recomendada: Foxglove Studio → ws://localhost:9090 (GPU nativa)
+Fallback: noVNC → http://localhost:6080/vnc.html (renderizado software)
 ```
 
-### Flujo de datos de sensores
+### Pipeline completo de datos
 
 ```
-Gazebo (P3D plugin) ────▶ /gazebo/odom_clean ──▶ noise_injector ───▶ /mechdog/odom
-Gazebo (Range HC-SR04) ─▶ /gazebo/ultrasonic_clean ─▶ noise_injector ──▶ /mechdog/ultrasonic (Range)
+Gazebo (P3D) ──▶ /gazebo/odom_clean ──▶ noise_injector ──▶ /mechdog/odom
+Gazebo (Range) ─▶ /gazebo/ultrasonic_clean ─▶ noise_injector ──▶ /mechdog/ultrasonic (Range)
                                                               └──▶ /mechdog/scan (1-ray LaserScan)
+
+Goal ──▶ /mechdog/goal ──▶ navigation_manager ──▶ global_planner ──▶ /mechdog/global_plan
+                                                              │
+                                                              ▼
+                                                      local_planner (DWA) ──▶ /mechdog/cmd_vel_raw
+                                                              │
+                                                              ▼
+                                                      safe_learning ──▶ /cmd_vel
+                                                              │
+                                                              ▼
+                                                      cmd_vel_to_gazebo ──▶ Gazebo set_model_state
+                                                              │
+                                                              ▼
+                                                      Modelo se desplaza en simulación
 
 Pipeline real (HAL):
   I2C Sonar (HC-SR04) ──▶ mechdog_hardware_interface ──▶ /mechdog/ultrasonic
-                                                    └──▶ /mechdog/scan (1-ray LaserScan)
+                                                     └──▶ /mechdog/scan
+  /cmd_vel ──▶ mechdog_hardware_interface ──▶ Hiwonder API (set_velocity)
 ```
 
 ### Docker Multi-Stage Build
@@ -73,13 +88,14 @@ Pipeline real (HAL):
 
 ## 2. Arquitectura Docker
 
-El sistema se compone de **4 servicios principales** definidos en `docker-compose.yml`:
+El sistema se compone de **5 servicios principales** definidos en `docker-compose.yml`:
 
 | Servicio | Imagen (target) | Puerto | Rol | ¿Debe quedar abierto? |
 |----------|----------------|--------|-----|-----------------------|
 | `roscore` | `builder` | — (host) | ROS Master (`roscore`) | **Sí** — debe estar corriendo siempre |
 | `simulation` | `builder` | — (host) | Gazebo + sensores + ruido | **Sí** — debe estar corriendo siempre |
-| `navigation` | `builder` | — (host) | Stack navegación (5 nodos) | **Sí** — debe estar corriendo siempre |
+| `navigation` | `builder` | — (host) | Stack navegación (6 nodos) | **Sí** — debe estar corriendo siempre |
+| `telemetry` | `builder` | `9090` | rosbridge WebSocket (Foxglove) | **Sí** — para visualización nativa |
 | `mechdog_viz` | `visualizer` | `6080` | noVNC + Gazebo GUI + RViz | Opcional — solo para ver la simulación |
 
 Además hay servicios **legacy** (perfil `--profile legacy`) para la arquitectura anterior con PyBullet:
@@ -215,10 +231,16 @@ Inicia cada servicio por separado. Todos deben quedar corriendo.
 #### Paso 1 — Construir la imagen
 
 ```bash
-docker compose build mechdog_viz
+docker compose build
 ```
 
-> Tarda ~5-8 minutos. Descarga ROS Noetic + Gazebo + dependencias y compila el workspace.
+> Tarda ~15-20 minutos la primera vez. Descarga ROS Noetic + Gazebo + dependencias y compila el workspace.
+
+Si solo necesitas la visualización web (noVNC):
+
+```bash
+docker compose build mechdog_viz
+```
 
 #### Paso 2 — Iniciar el ROS Master
 
@@ -232,13 +254,23 @@ docker compose up -d roscore
 docker compose up -d simulation
 ```
 
+Espera ~30-45 segundos a que Gazebo cargue el mundo y el robot se spawnée.
+
 #### Paso 4 — Iniciar la navegación
 
 ```bash
 docker compose up -d navigation
 ```
 
-#### Paso 5 — (Opcional) Abrir la interfaz gráfica
+Espera ~15 segundos a que los 6 nodos de navegación se registren en el ROS Master.
+
+#### Paso 5 — Iniciar la telemetría (Foxglove)
+
+```bash
+docker compose up -d telemetry
+```
+
+#### Paso 6 — (Opcional) Abrir la interfaz gráfica noVNC
 
 ```bash
 docker compose up -d mechdog_viz
@@ -246,44 +278,50 @@ docker compose up -d mechdog_viz
 
 En tu navegador: **http://localhost:6080/vnc.html** → click **Connect**
 
-Verás el escritorio virtual con Gazego y RViz.
-
-#### Paso 6 — Verificar que todo funciona
+#### Paso 7 — Verificar que todo funciona
 
 ```bash
-docker compose exec roscore bash -c "source /app/catkin_ws/devel/setup.bash && rosnode list"
+docker compose exec roscore bash -c "source /opt/ros/noetic/setup.bash && rosnode list"
 ```
 
-Debes ver ~13 nodos activos.
+Debes ver ~15 nodos activos.
 
-#### Paso 7 — Enviar un goal de navegación
+#### Paso 8 — Enviar un goal de navegación
+
+Con el helper de PowerShell:
+
+```powershell
+.\goal.ps1 3.0 0.0
+```
+
+O manualmente:
 
 ```bash
 docker compose exec roscore bash -c "
   source /app/catkin_ws/devel/setup.bash &&
   rostopic pub /mechdog/goal geometry_msgs/PoseStamped \
-  '{header: {frame_id: odom}, pose: {position: {x: 3.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}' \
+  '{header: {frame_id: map}, pose: {position: {x: 3.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}' \
   --once
 "
 ```
 
-#### Paso 8 — Parar todo
+#### Paso 9 — Parar todo
 
 ```bash
-docker compose stop roscore simulation navigation mechdog_viz
+docker compose down
 ```
 
 ---
 
 ### Opción B: Script orquestado (start.sh)
 
-`start.sh` levanta los 4 servicios secuencialmente sobre la red bridge, esperando a que cada uno esté listo antes de continuar.
+`start.sh` levanta los 5 servicios secuencialmente sobre la red bridge, esperando a que cada uno esté listo antes de continuar.
 
 ```bash
 # Construir (solo la primera vez)
-docker compose build mechdog_viz
+docker compose build
 
-# Arrancar todo (simulación + navegación + VNC)
+# Arrancar todo (simulación + navegación + telemetría + VNC)
 ./start.sh all
 
 # O pasos individuales:
@@ -293,9 +331,9 @@ docker compose build mechdog_viz
 ./start.sh stop    # Detener todo
 ```
 
-Luego abre **http://localhost:6080/vnc.html** en tu navegador.
+Luego abre **Foxglove Studio** en `ws://localhost:9090` o **http://localhost:6080/vnc.html** en tu navegador.
 
-> `start.sh` levanta `roscore`, espera a que esté listo, luego `simulation`, espera a Gazebo, luego `navigation`, espera los 5+ nodos de navegación, y finalmente `mechdog_viz`. Cada servicio corre en su propio contenedor sobre la red `mechdog_net`.
+> `start.sh` levanta `roscore`, espera a que esté listo, luego `simulation`, espera a Gazebo, luego `navigation`, espera los 6+ nodos de navegación, luego `telemetry`, y finalmente `mechdog_viz`. Cada servicio corre en su propio contenedor sobre la red `mechdog_net`.
 
 ---
 
@@ -318,22 +356,24 @@ Iniciando stack de navegacion...
 Esperando nodos de navegacion......      [OK] 5 nodos de navegacion activos
 ```
 
-### Lista completa de nodos activos (13 nodos)
+### Lista completa de nodos activos (~15 nodos)
 
 ```
 /base_to_ultrasonic     ← TF estática base_link → ultrasonic_link
+/cmd_vel_to_gazebo      ← Puente cinemático /cmd_vel → Gazebo set_model_state (50 Hz)
 /gazebo                 ← Servidor de simulación Gazebo
 /gazebo_gui             ← GUI de Gazebo (solo con gui:=true)
-/global_planner         ← Planificador global A*
+/global_planner         ← Planificador global A*/Dijkstra/BFS
 /joint_state_publisher  ← Publica estados de joints del URDF
 /local_planner          ← Planificador local DWA (20 Hz)
 /metrics_collector      ← Recolecta métricas de simulación
-/navigation_manager     ← Máquina de estados (idle/planning/moving)
+/navigation_manager     ← Máquina de estados (idle/planning/moving/goal_reached)
 /noise_injector         ← Inyecta ruido realista a sensores
 /occupancy_grid_mapper  ← Mapa de ocupación bayesiano 1000×1000
 /robot_state_publisher  ← Publica TF del URDF (50 Hz)
 /rosout                 ← Logger de ROS
 /safe_learning          ← Control de seguridad activo (50 Hz)
+/scan_behavior          ← Rotación 360° cuando el planificador falla
 /sensor_simulator       ← Monitor de salud de sensores
 ```
 
@@ -341,33 +381,49 @@ Esperando nodos de navegacion......      [OK] 5 nodos de navegacion activos
 
 ## 6. Enviar un Goal de Navegación
 
-### Con el script start.sh
+### Con el helper de PowerShell (recomendado)
 
-```bash
-docker compose exec mechdog_viz bash -c "
-  source /app/catkin_ws/devel/setup.bash &&
-  rostopic pub /mechdog/goal geometry_msgs/PoseStamped \
-  '{header: {frame_id: odom}, pose: {position: {x: 3.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}' \
-  --once
-"
+```powershell
+.\goal.ps1 [x] [y]
+.\goal.ps1 3.0 0.0      # Goal a (3, 0) por defecto
+.\goal.ps1 2.0 2.0      # Goal a (2, 2)
 ```
 
-### Con servicios separados
+### Con `rostopic pub` (Linux / bash)
 
 ```bash
 docker compose exec roscore bash -c "
   source /app/catkin_ws/devel/setup.bash &&
   rostopic pub /mechdog/goal geometry_msgs/PoseStamped \
-  '{header: {frame_id: odom}, pose: {position: {x: 3.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}' \
+  '{header: {frame_id: map}, pose: {position: {x: 3.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}' \
   --once
 "
 ```
 
-### Salida esperada
+### Con Python (compatible PowerShell)
 
+```powershell
+Set-Content -Path .\goal.py -Value @'
+import rospy
+from geometry_msgs.msg import PoseStamped
+rospy.init_node('gp', anonymous=True)
+pub = rospy.Publisher('/mechdog/goal', PoseStamped, queue_size=1, latch=True)
+rospy.sleep(0.5)
+m = PoseStamped()
+m.header.frame_id = 'map'
+m.header.stamp = rospy.Time.now()
+m.pose.position.x = 3.0
+m.pose.position.y = 0.0
+m.pose.orientation.w = 1.0
+pub.publish(m)
+print('OK')
+'@
+docker compose cp .\goal.py roscore:/tmp/goal.py
+docker compose exec roscore bash -c "source /app/catkin_ws/devel/setup.bash && python3 /tmp/goal.py"
+Remove-Item .\goal.py
 ```
-publishing and latching message for 3.0 seconds
-```
+
+### Salida esperada
 
 ### Verificar estado después del goal
 
@@ -395,7 +451,37 @@ docker compose exec mechdog_viz bash -c "
 
 ## 7. Visualización y Simulación del Entorno
 
-Esta sección detalla cómo lanzar la simulación, abrir la interfaz web noVNC, cargar el mapa probabilístico y observar en tiempo real cómo el robot ejecuta el *Scan Behavior* y traza rutas con distintos algoritmos.
+Esta sección detalla cómo lanzar la simulación y visualizar los datos del robot en tiempo real.
+
+### 7.0 Foxglove Studio (visualización nativa con GPU)
+
+**Foxglove Studio** es el método recomendado de visualización. Se conecta a `ws://localhost:9090` (vía el servicio `telemetry`) y renderiza con la GPU real del host, sin los problemas de OpenGL software del contenedor.
+
+```bash
+# 1. Conectar Foxglove a rosbridge
+#    Abrir app.foxglove.dev o la app desktop
+#    Open Connection → ws://localhost:9090
+
+# 2. Agregar paneles recomendados:
+```
+
+| Panel | Topic | Qué muestra |
+|-------|-------|-------------|
+| **3D** | `/tf`, `/mechdog/global_plan`, `/mechdog/local_plan` | Robot 3D moviéndose + rutas |
+| **OccupancyGrid** | `/mechdog/map` | Mapa bayesiano 50x50m |
+| **Polygon** | `/mechdog/safety_polygon` | Polígono de colisión dinámico |
+| **State Transitions** | `/mechdog/navigation_status` | Estados: idle→planning→moving→goal_reached |
+
+### 7.0.1 Verificar telemetría
+
+```bash
+# Confirmar que rosbridge está activo
+docker compose ps telemetry
+# Debe mostrar: Up   0.0.0.0:9090->9090/tcp
+
+# Logs sin errores (no debe aparecer "_buff")
+docker compose logs telemetry | grep -i error
+```
 
 ### 7.1 Lanzar simulación completa
 
@@ -605,13 +691,16 @@ El benchmark revela las diferencias fundamentales entre los algoritmos:
 | `/mechdog/odom` | `nav_msgs/Odometry` | 50 | Odometría con ruido (frame: `odom`) |
 | `/mechdog/ultrasonic` | `sensor_msgs/Range` | 20 | HC-SR04 ultrasonido (FOV 15°, 3.0m) |
 | `/mechdog/scan` | `sensor_msgs/LaserScan` | 20 | 1-rayo LaserScan (compatibilidad nav stack) |
-| `/mechdog/cmd_vel_raw` | `geometry_msgs/Twist` | 20 | Velocidad calculada por DWA |
-| `/mechdog/navigation_status` | `std_msgs/String` | 1 | `idle` / `moving` / `replanning` |
-| `/mechdog/safety_status` | `std_msgs/String` | 50 | `safe` / `warning` / `emergency_stop` |
-| `/mechdog/global_plan` | `nav_msgs/Path` | 1 | Path global del A* |
+| `/mechdog/cmd_vel_raw` | `geometry_msgs/Twist` | 20 | Velocidad calculada por DWA (antes del filtro) |
+| `/cmd_vel` | `geometry_msgs/Twist` | 50 | Velocidad final (después de safe_learning) |
+| `/mechdog/navigation_status` | `std_msgs/String` | 1 | `idle` / `planning` / `moving` / `goal_reached` |
+| `/mechdog/safety_status` | `std_msgs/String` | 50 | `SAFE` / `WARNING` / `EMERGENCY_STOP` |
+| `/mechdog/global_plan` | `nav_msgs/Path` | 1 | Path global del A*/Dijkstra/BFS |
 | `/mechdog/local_plan` | `nav_msgs/Path` | 20 | Path local del DWA |
-| `/mechdog/map` | `nav_msgs/OccupancyGrid` | 1 | Mapa de ocupación bayesiano |
+| `/mechdog/map` | `nav_msgs/OccupancyGrid` | 1 | Mapa de ocupación bayesiano 50×50m |
 | `/mechdog/safety_polygon` | `geometry_msgs/PolygonStamped` | 50 | Polígono de seguridad dinámico |
+| `/mechdog/emergency_stop` | `std_msgs/Bool` | — | Parada de emergencia |
+| `/gazebo/model_states` | `gazebo_msgs/ModelStates` | 50 | Posición ground-truth del modelo en Gazebo |
 
 ### Topics internos de Gazebo
 
@@ -659,6 +748,7 @@ Capa de simulación que conecta Gazebo con el stack de navegación.
 | `noise_injector_node.py` | Agrega ruido gaussiano + drift a odom y ultrasonido HC-SR04 (Sim-to-Real) |
 | `sensor_simulator_node.py` | Monitorea salud de sensores, logs timeouts |
 | `metrics_collector_node.py` | Guarda métricas en `/app/metrics_output/` |
+| `cmd_vel_to_gazebo.py` | **Puente cinemático**: suscribe `/cmd_vel`, aplica twist al modelo de Gazebo vía `set_model_state` a 50 Hz |
 
 **Parámetros de ruido** (`noise_injection.yaml`):
 - Ultrasonido: σ=0.01m, 1% outliers, 2% dropouts
@@ -672,24 +762,22 @@ Stack de navegación autónoma 100% portable (sin dependencias de Gazebo).
 
 ```
 /mechdog/goal ──▶ navigation_manager ──▶ global_planner (PlannerStrategy ABC)
-                                       │   ┌ A* / Dijkstra / BFS
-                                       │   └───▶ /mechdog/global_plan
-                                       ├──▶ scan_behavior (rotación 360° si no hay ruta)
-                                       ├──▶ local_planner (DWA)
-                                       ├──▶ safe_learning (freno activo)
-                                       └──▶ occupancy_grid_mapper
-                                      │   ┌ A* / Dijkstra / BFS
-                                      │   └───▶ /mechdog/global_plan
-                                      ├──▶ scan_behavior (rotación 360° si no hay ruta)
-                                      ├──▶ local_planner (DWA)
-                                      ├──▶ safe_learning (freno activo)
-                                      └──▶ occupancy_grid_mapper
+                                        │   ┌ A* / Dijkstra / BFS
+                                        │   └───▶ /mechdog/global_plan
+                                        ├──▶ scan_behavior (rotación 360° si no hay ruta)
+                                        │       └──▶ /cmd_vel (ω=0.3 rad/s)
+                                        ├──▶ local_planner (DWA)
+                                        │   └───▶ /mechdog/cmd_vel_raw
+                                        ├──▶ safe_learning (freno activo)
+                                        │   └───▶ /cmd_vel
+                                        └──▶ occupancy_grid_mapper
+                                            └───▶ /mechdog/map
 ```
 
 | Nodo | Algoritmo | Frecuencia |
 |------|-----------|------------|
 | `planner_strategy.py` | ABC con A*, Dijkstra y BFS (heapq) | — |
-| `global_planner_node.py` | Delegación a PlannerStrategy | 1 Hz (o al recibir goal) |
+| `global_planner_node.py` | Delegación a PlannerStrategy (A*/Dijkstra/BFS) | 1 Hz (o al recibir goal) |
 | `scan_behavior_node.py` | Rotación 360° a 0.3 rad/s si no hay plan | Reactivo |
 | `local_planner_node.py` | DWA (Dynamic Window Approach) | 20 Hz |
 | `safe_learning_node.py` | Freno predictivo + polígono dinámico | 50 Hz |
@@ -804,6 +892,44 @@ docker compose exec mechdog_viz bash -c "
   source /app/catkin_ws/devel/setup.bash &&
   timeout 2 rostopic echo /mechdog/odom -n 1 | head -4
 "
+```
+
+### El robot se mueve errático (avanza y retrocede)
+
+**Causa**: La función `distance_to_path` del DWA evaluaba todos los puntos de la trayectoria, incluyendo el punto de inicio (compartido por todas las trayectorias), anulando la diferenciación.
+
+**Solución**: El fix aplicado en `local_planner_node.py` cambia la evaluación al **último punto** de la trayectoria simulada solamente. Reconstruir:
+
+```bash
+docker compose exec navigation bash -c "
+  source /opt/ros/noetic/setup.bash &&
+  cd /app/catkin_ws &&
+  catkin_make --pkg mechdog_navigation
+"
+docker compose restart navigation
+```
+
+### Error `'Clock' object has no attribute '_buff'` en telemetry
+
+**Causa**: Bug de `rosbridge_server` con tiempo simulado (`/clock`). El archivo `outgoing_message.py` accede a `_buff` que no existe en mensajes `Clock`.
+
+**Solución**: El `entrypoint_telemetry.sh` parchea automáticamente el archivo al arrancar. Si persiste:
+
+```bash
+docker compose restart telemetry
+docker compose logs telemetry | grep patched
+# Debe mostrar: rosbridge patched OK
+```
+
+### NoVNC: pantalla negra con logo Ubuntu, sin terminal
+
+**Causa**: Fluxbox arranca sin aplicaciones. `xterm` no estaba instalado.
+
+**Solución**: Click derecho → **Terminal** (abre xterm). Si no aparece, reconstruir:
+
+```bash
+docker compose build mechdog_viz
+docker compose up -d mechdog_viz
 ```
 
 ### Comandos de diagnóstico útiles
