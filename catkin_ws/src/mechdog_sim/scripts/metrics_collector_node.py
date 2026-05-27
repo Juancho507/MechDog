@@ -34,6 +34,7 @@ class MetricsCollector:
         
         # State tracking
         self.last_pose = None
+        self.last_time = None
         self.start_time = rospy.Time.now()
         self.global_path = None
         
@@ -45,7 +46,7 @@ class MetricsCollector:
         # Initialize subscribers
         self.scan_sub = rospy.Subscriber('/mechdog/scan', LaserScan, self.scan_callback)
         self.odom_sub = rospy.Subscriber('/mechdog/odom', Odometry, self.odom_callback)
-        self.path_sub = rospy.Subscriber('/mechdog/global_path', Path, self.path_callback)
+        self.path_sub = rospy.Subscriber('/mechdog/global_plan', Path, self.path_callback)
         self.emergency_sub = rospy.Subscriber('/mechdog/emergency_stop', Bool, self.emergency_callback)
         
         # Initialize periodic save timer
@@ -74,6 +75,7 @@ class MetricsCollector:
         self.metrics['odom_count'] += 1
         
         current_pose = msg.pose.pose.position
+        current_time = msg.header.stamp
         
         # Calculate distance traveled
         if self.last_pose is not None:
@@ -81,6 +83,14 @@ class MetricsCollector:
             dy = current_pose.y - self.last_pose.y
             distance = np.sqrt(dx**2 + dy**2)
             self.metrics['total_distance'] += distance
+            
+            # Compute velocity from pose deltas (robust: twist is always zero from set_model_state)
+            if self.last_time is not None:
+                dt = (current_time - self.last_time).to_sec()
+                if dt > 0:
+                    vel_from_delta = distance / dt
+                    if vel_from_delta > self.metrics['max_velocity']:
+                        self.metrics['max_velocity'] = vel_from_delta
             
             # Calculate path deviation if global path is available
             if self.global_path is not None:
@@ -97,6 +107,7 @@ class MetricsCollector:
             self.metrics['max_velocity'] = abs(linear_vel)
             
         self.last_pose = current_pose
+        self.last_time = current_time
         
     def path_callback(self, msg):
         """Store global path for deviation calculation"""
@@ -131,11 +142,11 @@ class MetricsCollector:
         self.save_metrics()
         
     def save_metrics(self):
-        """Save collected metrics to CSV files"""
+        """Save collected metrics to CSV files (overwrites single summary file)"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # Save summary metrics
-        summary_file = os.path.join(self.output_dir, f"metrics_summary_{timestamp}.csv")
+        # Overwrite single summary file (avoids 200+ files per session)
+        summary_file = os.path.join(self.output_dir, "metrics_summary_latest.csv")
         with open(summary_file, 'w') as f:
             writer = csv.writer(f)
             writer.writerow(['Metric', 'Value'])
@@ -151,7 +162,18 @@ class MetricsCollector:
                 writer.writerow(['Mean Path Deviation (m)', f"{np.mean(deviations):.4f}"])
                 writer.writerow(['Max Path Deviation (m)', f"{np.max(deviations):.4f}"])
                 
-        # Save scan quality time series
+        # Save time-series data only on shutdown to reduce file count
+        # (timer save only updates summary; full detail saved at the end)
+                    
+        rospy.loginfo(f"Metrics summary saved (counts: scan={self.metrics['scan_count']}, odom={self.metrics['odom_count']})")
+        
+    def shutdown_hook(self):
+        """Save final metrics on shutdown (with full time-series)"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        rospy.loginfo("Saving final metrics before shutdown...")
+        self.save_metrics()
+        
+        # Save scan quality time series (only on shutdown)
         if self.metrics['scan_quality']:
             scan_file = os.path.join(self.output_dir, f"scan_quality_{timestamp}.csv")
             with open(scan_file, 'w') as f:
@@ -165,7 +187,7 @@ class MetricsCollector:
                         entry['min_range']
                     ])
                     
-        # Save path deviations
+        # Save path deviations (only on shutdown)
         if self.metrics['path_deviations']:
             dev_file = os.path.join(self.output_dir, f"path_deviations_{timestamp}.csv")
             with open(dev_file, 'w') as f:
@@ -173,13 +195,6 @@ class MetricsCollector:
                 writer.writerow(['Timestamp', 'Deviation (m)'])
                 for entry in self.metrics['path_deviations']:
                     writer.writerow([entry['timestamp'], entry['deviation']])
-                    
-        rospy.loginfo(f"Metrics saved to {self.output_dir}")
-        
-    def shutdown_hook(self):
-        """Save final metrics on shutdown"""
-        rospy.loginfo("Saving final metrics before shutdown...")
-        self.save_metrics()
         
     def run(self):
         """Main loop"""
