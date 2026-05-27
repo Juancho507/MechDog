@@ -155,49 +155,6 @@ services:
       bash -c "source /app/catkin_ws/devel/setup.bash &&
                roslaunch mechdog_description display.launch"
 
-  # ========================================================================
-  # LEGACY SERVICES (PyBullet — Old Architecture)
-  # ========================================================================
-
-  solver:
-    build:
-      context: .
-      dockerfile: Dockerfile.pybullet
-    entrypoint: python -m exploration.solver
-    volumes:
-      - ./maps:/app/maps
-    environment:
-      - PYTHONUNBUFFERED=1
-    profiles:
-      - legacy
-
-  visualize:
-    build:
-      context: .
-      dockerfile: Dockerfile.pybullet
-    command: /start_vnc.sh
-    volumes:
-      - ./maps:/app/maps
-    environment:
-      - PYTHONUNBUFFERED=1
-    ports:
-      - "6081:6080"
-    profiles:
-      - legacy
-
-  train:
-    build:
-      context: .
-      dockerfile: Dockerfile.pybullet
-    command: python main.py
-    volumes:
-      - ./maps:/app/maps
-    environment:
-      - PYTHONUNBUFFERED=1
-    profiles:
-      - legacy
-
-
 # =========================================================================
 # Networks
 # =========================================================================
