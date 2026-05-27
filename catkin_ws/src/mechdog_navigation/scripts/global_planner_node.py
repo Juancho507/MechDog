@@ -139,6 +139,21 @@ class GlobalPlanner:
 
         if result.success:
             path_msg = self.grid_path_to_msg(result.path)
+            # Extend path to include the true goal position so the DWA
+            # doesn't stop early due to planner goal_tolerance.
+            last = path_msg.poses[-1]
+            gx = self.current_goal.pose.position.x
+            gy = self.current_goal.pose.position.y
+            dx_end = last.pose.position.x - gx
+            dy_end = last.pose.position.y - gy
+            if dx_end * dx_end + dy_end * dy_end > 0.001:
+                goal_pose = PoseStamped()
+                goal_pose.header.stamp = rospy.Time.now()
+                goal_pose.header.frame_id = self.param_global_frame
+                goal_pose.pose.position.x = gx
+                goal_pose.pose.position.y = gy
+                goal_pose.pose.orientation.w = 1.0
+                path_msg.poses.append(goal_pose)
             self.path_pub.publish(path_msg)
             rospy.loginfo(
                 "%s — path found: %d waypoints, %d nodes expanded, %.2f ms",

@@ -202,15 +202,22 @@ class OccupancyGridMapper:
                 continue
 
             end_x_map, end_y_map = self.world_to_map(end_x_world, end_y_world)
-            self.ray_trace(robot_x_map, robot_y_map, end_x_map, end_y_map)
+            # If the reading is at range_max, the sensor saw nothing —
+            # mark free space along the ray but do NOT mark endpoint as obstacle.
+            is_max_range = (r >= _max_range - 0.01)
+            self.ray_trace(robot_x_map, robot_y_map, end_x_map, end_y_map,
+                           max_range_hit=is_max_range)
 
             angle += scan.angle_increment
             
-    def ray_trace(self, x0, y0, x1, y1):
+    def ray_trace(self, x0, y0, x1, y1, max_range_hit=False):
         """Bresenham's line algorithm for ray tracing
         
         Models the 15° ultrasonic beam as a 3×3 cell block at the endpoint,
         since the physical sensor sees a cone (not a single ray).
+        
+        When max_range_hit=True, the sensor saw nothing at max range —
+        mark only free cells, do NOT mark the endpoint as occupied.
         """
         # Mark cells along ray as free
         cells = self.bresenham_line(x0, y0, x1, y1)
@@ -223,12 +230,16 @@ class OccupancyGridMapper:
             if i < len(cells) - 1:
                 self.update_cell(x, y, free=True)
             else:
-                # Mark end cell as occupied (3×3 block for 15° beam width)
-                for dx in (-1, 0, 1):
-                    for dy in (-1, 0, 1):
-                        nx, ny = x + dx, y + dy
-                        if self.is_valid_cell(nx, ny):
-                            self.update_cell(nx, ny, free=False)
+                if max_range_hit:
+                    # Sensor saw nothing — mark endpoint as free too
+                    self.update_cell(x, y, free=True)
+                else:
+                    # Mark end cell as occupied (3×3 block for 15° beam width)
+                    for dx in (-1, 0, 1):
+                        for dy in (-1, 0, 1):
+                            nx, ny = x + dx, y + dy
+                            if self.is_valid_cell(nx, ny):
+                                self.update_cell(nx, ny, free=False)
                 
     def bresenham_line(self, x0, y0, x1, y1):
         """Bresenham's line algorithm"""

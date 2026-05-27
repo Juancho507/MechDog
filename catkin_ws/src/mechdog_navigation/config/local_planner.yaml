@@ -15,10 +15,12 @@ local_planner:
     min_vel_theta: -1.5  # rad/s
     
   # Acceleration limits
+  # Set high for simulated robot (cmd_vel_to_gazebo can change velocity instantly).
+  # For physical robot, reduce to realistic values (e.g. 2.0/3.0).
   acceleration_limits:
-    acc_lim_x: 2.0  # m/s^2
+    acc_lim_x: 25.0  # m/s^2
     acc_lim_y: 0.0  # m/s^2
-    acc_lim_theta: 3.0  # rad/s^2
+    acc_lim_theta: 25.0  # rad/s^2
     
   # DWA specific parameters
   dwa:
@@ -28,17 +30,17 @@ local_planner:
     vth_samples: 40  # Number of angular velocity samples
     
     # Simulation parameters
-    sim_time: 2.0  # seconds - how far to simulate trajectories
+    sim_time: 4.0  # seconds - how far to simulate trajectories
     sim_granularity: 0.05  # seconds - time between trajectory points
     angular_sim_granularity: 0.025  # seconds - angular simulation granularity
     
     # Trajectory scoring weights
     scoring:
-      path_distance_bias: 32.0  # Cross-track error weight
-      goal_distance_bias: 48.0  # Get closer to goal
-      occdist_scale: 10.0       # Obstacle penalty inside braking distance
-      speed_bonus: 10.0         # Reward for forward velocity
-      progress_bonus: 20.0      # Reward for making forward progress along the path
+      path_distance_bias: 50.0  # Smooth attraction to path (1/(dist+1) form)
+      goal_distance_bias: 60.0  # Smooth attraction to goal (1/(dist+1) form)
+      occdist_scale: 15.0       # Obstacle penalty inside braking distance
+      speed_bonus: 30.0         # Reward for forward velocity
+      progress_bonus: 60.0      # Reward for forward progress along the path
       
     # Forward simulation
     forward_point_distance: 0.325  # meters - point on robot to use for trajectory sim
@@ -50,7 +52,7 @@ local_planner:
     
   # Goal tolerance
   goal_tolerance:
-    xy_goal_tolerance: 0.2  # meters
+    xy_goal_tolerance: 0.35  # meters
     yaw_goal_tolerance: 0.1  # radians
     latch_xy_goal_tolerance: false
     

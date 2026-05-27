@@ -88,5 +88,9 @@ catkin_python_setup()
 ## Testing ##
 #############
 
-# Unit tests can be added here
-# catkin_add_nosetests(test)
+# Unit tests (run with: catkin_run_tests or `python3 -m unittest discover`)
+# Tests are standalone (no ROS master needed) and can also be run via:
+#   cd build && make run_tests_mechdog_navigation
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_nosetests(tests)
+endif()

@@ -28,6 +28,9 @@ class DWALocalPlanner:
         self._smoothed_vx = 0.0
         self._smoothed_wz = 0.0
         self._smooth_alpha = 0.3  # lower = smoother but more lag
+        self._best_score = 0.0
+        self._best_info = (0, 0, 0, 0, 0, 0, 0, 0, 0)
+        self._last_debug = 0.0
         
         # Publishers
         self.cmd_vel_pub = rospy.Publisher(
@@ -60,27 +63,27 @@ class DWALocalPlanner:
             '~local_planner/velocity_limits/max_vel_theta', 1.5)
         
         # Acceleration limits
-        self.param_acc_lim_x = rospy.get_param('~local_planner/acceleration_limits/acc_lim_x', 2.0)
+        self.param_acc_lim_x = rospy.get_param('~local_planner/acceleration_limits/acc_lim_x', 25.0)
         self.param_acc_lim_theta = rospy.get_param(
-            '~local_planner/acceleration_limits/acc_lim_theta', 3.0)
+            '~local_planner/acceleration_limits/acc_lim_theta', 25.0)
         
         # DWA parameters
         self.param_vx_samples = rospy.get_param('~local_planner/dwa/vx_samples', 20)
         self.param_vth_samples = rospy.get_param('~local_planner/dwa/vth_samples', 40)
-        self.param_sim_time = rospy.get_param('~local_planner/dwa/sim_time', 2.0)
+        self.param_sim_time = rospy.get_param('~local_planner/dwa/sim_time', 4.0)
         self.param_sim_granularity = rospy.get_param('~local_planner/dwa/sim_granularity', 0.05)
         
         # Scoring weights
         self.param_path_distance_bias = rospy.get_param(
-            '~local_planner/dwa/scoring/path_distance_bias', 32.0)
+            '~local_planner/dwa/scoring/path_distance_bias', 50.0)
         self.param_goal_distance_bias = rospy.get_param(
-            '~local_planner/dwa/scoring/goal_distance_bias', 48.0)
+            '~local_planner/dwa/scoring/goal_distance_bias', 60.0)
         self.param_occdist_scale = rospy.get_param(
-            '~local_planner/dwa/scoring/occdist_scale', 10.0)
+            '~local_planner/dwa/scoring/occdist_scale', 15.0)
         self.param_speed_bonus = rospy.get_param(
-            '~local_planner/dwa/scoring/speed_bonus', 10.0)
+            '~local_planner/dwa/scoring/speed_bonus', 30.0)
         self.param_progress_bonus = rospy.get_param(
-            '~local_planner/dwa/scoring/progress_bonus', 20.0)
+            '~local_planner/dwa/scoring/progress_bonus', 60.0)
         
         # Obstacle avoidance
         self.param_min_obstacle_dist = rospy.get_param(
@@ -88,7 +91,7 @@ class DWALocalPlanner:
         
         # Goal tolerance
         self.param_xy_goal_tolerance = rospy.get_param(
-            '~local_planner/goal_tolerance/xy_goal_tolerance', 0.2)
+            '~local_planner/goal_tolerance/xy_goal_tolerance', 0.35)
         self.param_yaw_goal_tolerance = rospy.get_param(
             '~local_planner/goal_tolerance/yaw_goal_tolerance', 0.1)
         
@@ -158,6 +161,35 @@ class DWALocalPlanner:
             rospy.loginfo("Goal reached!")
             self.publish_velocity(0.0, 0.0)
             return
+
+        # Final approach: when close to the goal, use a simple proportional
+        # controller to drive directly toward it. This avoids DWA oscillation
+        # near the goal where forward motion briefly increases Euclidean distance.
+        goal_pose = self.global_path.poses[-1].pose
+        gx = goal_pose.position.x
+        gy = goal_pose.position.y
+        rx = self.current_odom.pose.pose.position.x
+        ry = self.current_odom.pose.pose.position.y
+        dist_to_goal = math.hypot(gx - rx, gy - ry)
+        yaw = self.get_yaw_from_quaternion(self.current_odom.pose.pose.orientation)
+        goal_angle = math.atan2(gy - ry, gx - rx)
+        angle_error = goal_angle - yaw
+        while angle_error > math.pi:
+            angle_error -= 2.0 * math.pi
+        while angle_error < -math.pi:
+            angle_error += 2.0 * math.pi
+
+        if dist_to_goal < 0.8:
+            # Pure pursuit — drive toward goal
+            v_target = min(0.15, dist_to_goal * 0.5)
+            w_target = 0.8 * angle_error  # P-controller for heading
+            self.publish_velocity(v_target, w_target)
+            if rospy.get_time() - self._last_debug > 3.0:
+                self._last_debug = rospy.get_time()
+                rospy.loginfo(
+                    "FINAL APPROACH v=%.2f w=%.2f dist=%.2f angle_err=%.1f°",
+                    v_target, w_target, dist_to_goal, angle_error * 180 / math.pi)
+            return
             
         # Compute DWA velocity command
         best_vel = self.compute_dwa_velocity()
@@ -170,6 +202,19 @@ class DWALocalPlanner:
             
     def compute_dwa_velocity(self):
         """Compute best velocity using Dynamic Window Approach"""
+        if self.current_odom is not None:
+            rospy.loginfo_throttle(2.0,
+                "DWA cycle: pos=(%.2f, %.2f) yaw=%.1f | "
+                "v_curr=%.2f w_curr=%.2f",
+                self.current_odom.pose.pose.position.x,
+                self.current_odom.pose.pose.position.y,
+                self.get_yaw_from_quaternion(
+                    self.current_odom.pose.pose.orientation) * 180 / math.pi,
+                self.current_velocity.linear.x,
+                self.current_velocity.angular.z)
+        self._best_score = -float('inf')
+        self._debug_score = -float('inf')
+        self._debug_vel = None
         # Get dynamic window
         dw = self.get_dynamic_window()
         
@@ -198,6 +243,12 @@ class DWALocalPlanner:
         # Publish best trajectory for visualization
         if best_traj is not None:
             self.publish_local_plan(best_traj)
+
+        if best_vel is not None and rospy.get_time() - self._last_debug > 5.0:
+            self._last_debug = rospy.get_time()
+            rospy.loginfo(
+                "BEST v=%.2f w=%.2f score=%.1f",
+                best_vel[0], best_vel[1], best_score)
             
         return best_vel
         
@@ -285,33 +336,59 @@ class DWALocalPlanner:
         return math.hypot(x - obs_x, y - obs_y)
         
     def score_trajectory(self, trajectory, v, w):
-        """Score trajectory based on path progress, goal distance, obstacles"""
+        """Score trajectory based on path following, goal attraction, obstacles"""
         if len(trajectory) == 0:
             return -float('inf')
-            
-        # Path progress (cross-track + how far along the path the endpoint falls)
-        cross_track, path_progress = self.path_progress(trajectory[-1])
-        
-        # Distance to goal
-        goal_dist = self.distance_to_goal(trajectory[-1])
-        
-        # Distance to obstacles (only penalize within braking range)
-        obstacle_dist = self.get_min_obstacle_distance(trajectory[-1][0], trajectory[-1][1])
-        total_path_len = self._path_length()
+        endpoint = trajectory[-1]
+        cross_track, _ = self.path_progress(endpoint)
+        goal_dist = self.distance_to_goal(endpoint)
+        obstacle_dist = self.get_min_obstacle_distance(endpoint[0], endpoint[1])
+
+        # Path score: smooth decay that never reaches zero.
+        # Using 1/(dist+1) instead of 1/(dist+eps) to avoid extreme sensitivity
+        # near dist=0 that made the DWA prefer rotation. The +1 keeps the
+        # function well-behaved at all distances and always provides attraction.
+        path_score = self.param_path_distance_bias / (cross_track + 1.0)
+
+        # Goal score: same smooth formulation
+        goal_score = self.param_goal_distance_bias / (goal_dist + 1.0)
+
+        # Obstacle penalty: only within braking distance
         braking = max(abs(v), 0.05) * 0.5 + 0.1
         if obstacle_dist < braking:
-            obstacle_cost = self.param_occdist_scale * (braking - obstacle_dist) / braking
+            obstacle_cost = self.param_occdist_scale * (1.0 - obstacle_dist / braking)
         else:
             obstacle_cost = 0.0
 
-        score = (
-            self.param_path_distance_bias * (1.0 / (cross_track + 0.1)) +
-            self.param_progress_bonus * (path_progress / max(total_path_len, 1.0)) +
-            self.param_goal_distance_bias * (1.0 / (goal_dist + 0.1)) -
-            obstacle_cost +
-            self.param_speed_bonus * v
-        )
-        
+        # Progress bonus along the path (forward direction)
+        total_len = self._path_length()
+        dx = endpoint[0] - self.current_odom.pose.pose.position.x
+        dy = endpoint[1] - self.current_odom.pose.pose.position.y
+        forward_progress = math.hypot(dx, dy)
+        progress_score = self.param_progress_bonus * min(forward_progress / max(total_len, 1.0), 0.5)
+
+        # Direction bonus: reward moving toward the goal, even if endpoint is not closer.
+        # This prevents getting stuck when the robot faces away from the goal —
+        # the initial forward motion increases Euclidean distance to goal, but moving
+        # in the right direction is still desirable.
+        if self.global_path is not None and len(self.global_path.poses) > 0:
+            gp = self.global_path.poses[-1].pose.position
+            gdx = gp.x - self.current_odom.pose.pose.position.x
+            gdy = gp.y - self.current_odom.pose.pose.position.y
+            goal_heading = math.atan2(gdy, gdx)
+            traj_heading = math.atan2(dy, dx)
+            angle_diff = traj_heading - goal_heading
+            # Normalize to [-pi, pi]
+            while angle_diff > math.pi:
+                angle_diff -= 2.0 * math.pi
+            while angle_diff < -math.pi:
+                angle_diff += 2.0 * math.pi
+            direction_bonus = self.param_speed_bonus * v * math.cos(angle_diff)
+        else:
+            direction_bonus = 0.0
+
+        score = (path_score + goal_score - obstacle_cost + progress_score +
+                 self.param_speed_bonus * v + direction_bonus)
         return score
         
     def path_progress(self, point):
@@ -381,16 +458,27 @@ class DWALocalPlanner:
             return False
             
         goal_pose = self.global_path.poses[-1]
-        dx = self.current_odom.pose.pose.position.x - goal_pose.pose.position.x
-        dy = self.current_odom.pose.pose.position.y - goal_pose.pose.position.y
+        rx = self.current_odom.pose.pose.position.x
+        ry = self.current_odom.pose.pose.position.y
+        gx = goal_pose.pose.position.x
+        gy = goal_pose.pose.position.y
+        dx = rx - gx
+        dy = ry - gy
         dist = math.sqrt(dx**2 + dy**2)
+        reached = dist < self.param_xy_goal_tolerance
         
-        return dist < self.param_xy_goal_tolerance
+        return reached
         
     def publish_velocity(self, v, w):
         """Publish velocity command with exponential smoothing to prevent oscillation"""
         self._smoothed_vx = self._smooth_alpha * v + (1.0 - self._smooth_alpha) * self._smoothed_vx
         self._smoothed_wz = self._smooth_alpha * w + (1.0 - self._smooth_alpha) * self._smoothed_wz
+        # Clamp to zero when both input and smoothed value are negligible
+        # to prevent denormalized floats (10^-89) from reaching the motor controller.
+        if abs(self._smoothed_vx) < 1e-12 and abs(v) < 1e-12:
+            self._smoothed_vx = 0.0
+        if abs(self._smoothed_wz) < 1e-12 and abs(w) < 1e-12:
+            self._smoothed_wz = 0.0
         cmd = Twist()
         cmd.linear.x = self._smoothed_vx
         cmd.angular.z = self._smoothed_wz
