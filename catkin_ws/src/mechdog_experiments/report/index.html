@@ -8,110 +8,345 @@
 </head>
 <body>
 <div class="header">
-    <h1>🤖 MechDog — Informe Experimental</h1>
-    <p>Comparacion de Algoritmos de Navegacion Autonoma: A* (A-Star) vs BFS (Breadth-First Search)</p>
-    <p class="subtitle">Robot Cuadrupedo Autonomo · ROS Noetic · Gazebo · Docker · noVNC</p>
+    <h1>MechDog - Informe Experimental</h1>
+    <p>Comparación de Algoritmos de Navegación Autónoma: A* (A-Star) vs BFS (Breadth-First Search)</p>
+    <p class="subtitle">Robot Cuadrupedo Autónomo · ROS Noetic · Gazebo · Docker · noVNC</p>
 </div>
 
 <div class="container">
 
+<div class="section">
+<h2>Integrantes</h2>
+<p>
+    Mateo Cárdenas Pedraza - 20231578086
+    <br>
+    Juan David Ortiz Gordillo - 20231578110
+    <br>
+    Laura Juliana Cárdenas Sánchez - 20231578062
+</p>
+
+</div>
+
 <!-- SECCION: TABLA DE CONTENIDO -->
 <div class="section toc">
-    <h2>📑 Contenido</h2>
+    <h2>Contenido</h2>
     <ol>
-        <li><a href="#intro">Introduccion al Proyecto</a></li>
-        <li><a href="#algorithms">Algoritmos Implementados</a></li>
-        <li><a href="#why">¿Por que solo A* y BFS?</a></li>
-        <li><a href="#results">Resultados Experimentales</a></li>
-        <li><a href="#metrics">Metricas Evaluadas</a></li>
+        <li><a href="#intro">Introducción al Proyecto</a></li>
+        <li><a href="#objetivos">Objetivos y restricciones</a></li>
+        <li><a href="#MechDog">Sobre el MechDog</a></li>
+        <li><a href="#ROS">Sobre ROS</a></li>
+        <li><a href="#comparacion">Comparación de algoritmos</a></li>
+        <li><a href="#algoritmos">Algoritmos Implementados</a></li>
+        <li><a href="#porque">¿Por qué solo A* y BFS?</a></li>
+        <li><a href="#resultados">Resultados Experimentales</a></li>
+        <li><a href="#metricas">Métricas Evaluadas</a></li>
         <li><a href="#safe">Safe Learning (Aprendizaje Seguro)</a></li>
         <li><a href="#home">Punto Bueno (Home Base)</a></li>
-        <li><a href="#scenarios">Escenarios de Prueba</a></li>
-        <li><a href="#conclusions">Conclusiones</a></li>
+        <li><a href="#escenarios">Escenarios de Prueba</a></li>
+        <li><a href="#conclusiones">Conclusiones</a></li>
     </ol>
 </div>
 
 <!-- SECCION: INTRODUCCION -->
 <div class="section" id="intro">
-    <h2>1️⃣ Introduccion al Proyecto</h2>
-    <p>MechDog es un robot cuadrupedo autonomo desarrollado sobre ROS Noetic con simulacion en Gazebo y visualizacion web via noVNC. El objetivo principal es la <strong>navegacion autonoma en entornos con obstaculos</strong> utilizando exclusivamente un sensor ultrasonico.</p>
-    <p>Este informe compara dos algoritmos clasicos de busqueda de caminos —<strong>A* (A-Star)</strong> y <strong>BFS (Breadth-First Search)</strong>— aplicados a la navegacion del robot en tres escenarios de dificultad creciente con objetos dispersos.</p>
+    <h2>Introducción al Proyecto</h2>
+    <p>MechDog es un robot cuadrúpedo autónomo desarrollado sobre ROS Noetic con simulación en Gazebo y 
+        visualizacion web via noVNC. El objetivo principal es la <strong>navegacion autónoma en entornos 
+            con obstáculos</strong> utilizando exclusivamente un sensor ultrasónico. Este informe compara dos algoritmos clásicos de búsqueda de caminos: A* (A-Star) y BFS 
+            (Breadth-First Search) aplicados a la navegación del robot en tres escenarios de dificultad 
+            creciente con objetos dispersos.</p>
     <div class="info-box">
         <strong>Arquitectura del sistema:</strong>
         <ul>
-            <li>🐳 Docker multi-stage (base → builder → visualizer)</li>
-            <li>🌐 noVNC para visualizacion web en <code>http://localhost:6080/vnc.html</code></li>
-            <li>🤖 Gazebo Classic para simulacion 3D</li>
-            <li>🧭 Navigation stack: A*/BFS + DWA + Occupancy Grid + Safe Learning</li>
+            <li>Docker multi-stage (base → builder → visualizer)</li>
+            <li>noVNC para visualización web en <code>http://localhost:6080/vnc.html</code></li>
+            <li>Gazebo Classic para simulación 3D</li>
+            <li>Navigation stack: A*/BFS + DWA + Occupancy Grid + Safe Learning</li>
         </ul>
     </div>
 </div>
 
+<div class="section" id="objetivos">
+    <h2>Objetivos y restricciones</h2>
+    
+    <h3>Objetivos</h3>
+    <ul>
+      <li>Implementar un sistema de exploración autónoma para el robot MechDog.</li>
+      <li>Desarrollar e implementar dos algoritmos de planificación de rutas (A* y BFS).</li>
+      <li>Crear un entorno de simulación 3D con PyBullet, Docker y noVNC.</li>
+      <li>Comparar el rendimiento de ambos algoritmos bajo diferentes condiciones.</li>
+      <li>Generar un módulo de código independiente para el robot físico.</li>
+      <li>Integrar ROS para escalabilidad futura.</li>
+    </ul>
+
+    <h3>Restricciones</h3>
+    <ul>
+      <li>Sensores: Solo ultrasónico (no cámara, no LiDAR)</li>
+      <li>Comunicación: solo Bluetooth</li>
+      <li>Robot físico: MechDog Standard Kit de Hiwonder</li>
+      <li>Simulación: debe funcionar en contenedor Docker con noVNC</li>
+      <li>Código del robot: debe ser compatible con Hiwonder Python Editor</li>
+    </ul>
+
+
+</div>
+
+<div class="section" id="MechDog">
+    <h2>Sobre el MechDog</h2>
+
+    <p>El MechDog es un robot cuadrupedo disenado para educacion e investigacion en robotica. Esta
+    construido con estructura metalica y servo-motores de alto torque que
+    permiten una locomocion versatil.</p>
+
+    <div class="grid-2">
+      <div class="metric-box">
+        <div class="value">8</div>
+        <div class="label">Servo-motores</div>
+      </div>
+      <div class="metric-box">
+        <div class="value">Ultrasonico</div>
+        <div class="label">Sensor principal</div>
+      </div>
+      <div class="metric-box">
+        <div class="value">Bluetooth</div>
+        <div class="label">Comunicacion</div>
+      </div>
+      <div class="metric-box">
+        <div class="value">RPi</div>
+        <div class="label">Controlador</div>
+      </div>
+    </div>
+
+    <h3>Locomoción</h3>
+    <p>Utiliza 8 servos (2 por pata) para realizar diferentes
+    tipos de marcha: trote, caminata, giros y posturas estaticas. Cada
+    servo tiene un rango de 0-180 grados controlado via bus I2C con un
+    controlador PWM. La locomoción se basa en secuencias de angulos
+    predefinidas para cada gait.</p>
+
+    <h3>Sensor Ultrasonico HC-SR04</h3>
+    <p>El robot utiliza un sensor ultrasonico montado en el frente para
+    detección de obstaculos. El sensor emite pulsos ultrasonicos y mide
+    el tiempo de retorno del eco para calcular distancia. Rango efectivo:
+    2-200 cm, precision de ±3 mm.</p>
+
+    <h3>Bluetooth</h3>
+    <p>La comunicación inalámbrica se realiza via Bluetooth,
+    permitiendo enviar comandos y recibir telemetria del robot.
+    Protocolo: UART a 115200 baudios.</p>
+
+    <h3>Programación</h3>
+    <p>El robot es programable mediante "Hiwonder Python
+    Editor", un entorno basado en Python 3 que permite control
+    directo de servos, lectura de sensores y comunicación Bluetooth.
+    El SDK oficial incluye bibliotecas para control de movimiento.</p>
+
+    <h3>Limitaciones</h3>
+    <ul>
+      <li>Sin cámara.</li>
+      <li>Sin LiDAR ni sensores de profundidad.</li>
+      <li>Rango limitado del sensor ultrasonico (2m max).</li>
+      <li>Campo de visión estrecho (cono de ~15 grados).</li>
+      <li>Batería limitada (~30 min de operacion continua).</li>
+      <li>Sin odometría precisa (sin encoders en servos básicos).</li>
+    </ul>
+  </div>
+
+<div class="section" id="ROS">
+<h2>Sobre ROS</h2>
+
+    <h3>¿Qué es ROS?</h3>
+    <p>Robot Operating System o más conocido por sus siglas "ROS", es un framework de middleware utilizado 
+    para el desarrollo de software roboticio. Este proporciona servicios de comunicación
+    entre procesos (nodos), abstraccion de hardware, herramientas de
+    visualización y una amplia comunidad de paquetes reutilizables.</p>
+
+    <h3>¿Por qué se usó ROS?</h3>
+    <p>Después de una ardua investigación, estas fueron las 5 características que más destacaron
+      del sistema y lo que llevo a nuestra decisión final de usarlo.
+    </p>
+    <ul>
+      <li><strong>Modularidad:</strong> Separa la navegación, mapeo y control en nodos independientes</li>
+      <li><strong>Escalabilidad:</strong> Permite anadir nuevos sensores y algoritmos sin reescribir el sistema</li>
+      <li><strong>Comunicacion:</strong> Topics, servicios y acciones para intercambio de datos</li>
+      <li><strong>Simulacion y realidad:</strong> El mismo código ROS funciona en simulación y en el robot físico</li>
+      <li><strong>Herramientas:</strong> rviz, rqt, rosbag para depuración y análisis</li>
+    </ul>
+
+    <h3>Integración en el Proyecto</h3>
+    <p>Se implementaron tres nodos ROS principales:</p>
+
+    <table>
+      <tr><th>Nodo</th><th>Topic</th><th>Funcion</th></tr>
+      <tr><td>navigation_node</td><td>/planned_path, /cmd_vel</td><td>Planifica rutas con A*/BFS y publica comandos de velocidad</td></tr>
+      <tr><td>mapping_node</td><td>/occupancy_grid, /map_coverage</td><td>Construye el Occupancy Grid a partir de lecturas ultrasonicas</td></tr>
+      <tr><td>control_node</td><td>/cmd_vel, /robot_pose</td><td>Controla el robot, sigue caminos y evita obstaculos</td></tr>
+    </table>
+
+
+</div>
+
+<div class="section" id="comparacion">
+
+    <h2>Comparación con otros algoritmos</h2>
+    <table>
+      <tr>
+        <th>Algoritmo</th><th>Categoria</th><th>Ventajas</th>
+        <th>Desventajas</th><th>Seleccionado?</th>
+      </tr>
+      <tr>
+        <td><strong>A*</strong></td>
+        <td>Informado</td>
+        <td>Optimo, eficiente, heuristico</td>
+        <td>Requiere heuristica admisible</td>
+        <td>SI</td>
+      </tr>
+      <tr>
+        <td><strong>BFS</strong></td>
+        <td>No informado</td>
+        <td>Completo, simple, optimo en pasos</td>
+        <td>Ineficiente en mapas grandes</td>
+        <td>SI</td>
+      </tr>
+      <tr>
+        <td>DFS</td>
+        <td>No informado</td>
+        <td>Bajo consumo de memoria</td>
+        <td>No es optimo, puede ciclar infinitamente</td>
+        <td>NO</td>
+      </tr>
+      <tr>
+        <td>Dijkstra</td>
+        <td>Informado</td>
+        <td>Optimo, encuentra ruta mas corta</td>
+        <td>Similar a A* sin heuristica (mas lento)</td>
+        <td>NO</td>
+      </tr>
+      <tr>
+        <td>Q-Learning</td>
+        <td>RL</td>
+        <td>Aprende de experiencia, adaptable</td>
+        <td>Requiere muchas iteraciones, no deterministico</td>
+        <td>NO</td>
+      </tr>
+      <tr>
+        <td>PPO</td>
+        <td>RL (Policy Gradient)</td>
+        <td>Robusto, politicas continuas</td>
+        <td>Alto costo computacional, entrenamiento lento</td>
+        <td>NO</span></td>
+      </tr>
+      <tr>
+        <td>DQN</td>
+        <td>RL (Deep Q-Network)</td>
+        <td>Maneja estados continuos</td>
+        <td>Inestable, requiere tuning extensivo</td>
+        <td>NO</td>
+      </tr>
+      <tr>
+        <td>Greedy Search</td>
+        <td>Informado</td>
+        <td>Muy rapido</td>
+        <td>No es optimo, se queda en optimos locales</td>
+        <td>NO</td>
+      </tr>
+      <tr>
+        <td>Hill Climbing</td>
+        <td>Local</td>
+        <td>Simple, rapido</td>
+        <td>Maximos locales, sin garantia de exito</td>
+        <td>NO</td>
+      </tr>
+      <tr>
+        <td>Algoritmos Geneticos</td>
+        <td>Evolutivo</td>
+        <td>Exploracion global</td>
+        <td>Lento, no deterministico, dificil de ajustar</td>
+        <td>NO</td>
+      </tr>
+    </table>
+
+</div>
+
+
 <!-- SECCION: ALGORITMOS -->
-<div class="section" id="algorithms">
-    <h2>2️⃣ Algoritmos Implementados</h2>
+<div class="section" id="algoritmos">
+    <h2>Algoritmos Implementados</h2>
 
     <div class="algo-card">
-        <h3>🌟 A* (A-Star)</h3>
-        <p><strong>Tipo:</strong> Busqueda informada (heuristica).</p>
-        <p><strong>Principio:</strong> Combina el costo real del camino recorrido (<em>g(n)</em>) con una estimacion heuristica del costo restante (<em>h(n)</em>) para guiar la busqueda hacia la meta. Utiliza una cola de prioridad (min-heap) para explorar primero los nodos mas prometedores.</p>
+        <p>Dado el análisis anterior se decide implementar 2 algoritmos, los cuales son:</p>
+        <h3>A* (A-Star)</h3>
+        <p><strong>Tipo:</strong> Búsqueda informada (heurística).</p>
+        <p><strong>Principio:</strong> Combina el costo real del camino recorrido (<em>g(n)</em>) con una estimación 
+            heurística del costo restante (<em>h(n)</em>) para guiar la búsqueda hacia la meta. 
+            Utiliza una cola de prioridad (min-heap) para explorar primero los nodos mas prometedores.</p>
         <div class="formula">f(n) = g(n) + w · h(n)</div>
-        <p>Donde <em>w</em> es el peso heuristico (configurable, tipicamente 1.0) que controla el balance entre optimalidad y velocidad.</p>
-        <h4>Heuristicas disponibles:</h4>
+        <p>Dónde <em>w</em> es el peso heurístico (configurable, tipicamente 1.0) que controla el balance entre optimalidad y velocidad.</p>
+        
+        <h4>Heurísticas disponibles:</h4>
         <ul>
-            <li><strong>Manhattan:</strong> <code>h(n) = |x₁ - x₂| + |y₁ - y₂|</code> — Apropiada para movimiento en cuadricula con restriccion 4-conectada.</li>
-            <li><strong>Euclidea:</strong> <code>h(n) = √((x₁ - x₂)² + (y₁ - y₂)²)</code> — Apropiada para movimiento libre en cualquier direccion.</li>
+            <li><strong>Manhattan:</strong> Apropiada para movimiento en cuadricula con restriccion 4-conectada.
+                <br> 
+                <code>h(n) = |x₁ - x₂| + |y₁ - y₂|</code> </li>
+            <li><strong>Euclidea:</strong> Apropiada para movimiento libre en cualquier direccion.
+            <br>
+            <code>h(n) = √((x₁ - x₂)² + (y₁ - y₂)²)</code>
+            </li>
         </ul>
-        <h4>Caracteristicas:</h4>
+        <h4>Características:</h4>
         <ul>
-            <li>✅ Encuentra el camino optimo si la heuristica es admisible (no sobrestima)</li>
-            <li>✅ Mas rapido que BFS porque dirige la busqueda hacia la meta</li>
-            <li>✅ Menor consumo de memoria que BFS</li>
-            <li>⚠️ Puede no encontrar solucion si la heuristica sobreestima el costo</li>
+            <li>Encuentra el camino óptimo si la heurística es admisible (no sobrestima).</li>
+            <li>Más rápido que BFS porque dirige la búsqueda hacia la meta.</li>
+            <li>Menor consumo de memoria que BFS.</li>
+            <li>Puede no encontrar solución si la heurística sobreestima el costo.</li>
         </ul>
         <h4>Complejidad:</h4>
         <ul>
-            <li>Tiempo: O(b^d) en el peor caso, pero tipicamente mucho menor con buena heuristica</li>
-            <li>Espacio: O(b^d) — almacena todos los nodos generados</li>
+            <li>Tiempo: O(b^d) en el peor caso, pero típicamente mucho menor con buena heurística</li>
+            <li>Espacio: O(b^d) almacena todos los nodos generados</li>
         </ul>
     </div>
 
     <div class="algo-card">
-        <h3>🌐 BFS (Breadth-First Search)</h3>
-        <p><strong>Tipo:</strong> Busqueda no informada (ciega).</p>
-        <p><strong>Principio:</strong> Explora el grafo por niveles, expandiendo primero todos los nodos vecinos antes de pasar al siguiente nivel. Utiliza una cola FIFO (First-In-First-Out) para asegurar que se exploran primero los nodos mas cercanos al origen.</p>
-        <h4>Caracteristicas:</h4>
+        <h3>BFS (Breadth-First Search)</h3>
+        <p><strong>Tipo:</strong> Búsqueda no informada (ciega).</p>
+        <p><strong>Principio:</strong> Explora el grafo por niveles, expandiendo primero todos los nodos vecinos 
+            antes de pasar al siguiente nivel. Utiliza una cola FIFO (First-In-First-Out) para asegurar que se 
+            exploran primero los nodos más cercanos al origen.</p>
+        
+        <h4>Características:</h4>
         <ul>
-            <li>✅ Garantiza encontrar la solucion de menor longitud en numero de pasos</li>
-            <li>✅ Completo: siempre encuentra una solucion si existe</li>
-            <li>⚠️ Puede ser muy lento en mapas grandes (explora en todas direcciones)</li>
-            <li>⚠️ Alto consumo de memoria (almacena todos los nodos del nivel actual)</li>
+            <li>Garantiza encontrar la solución de menor longitud en número de pasos.</li>
+            <li>Siempre encuentra una solución si existe.</li>
+            <li>Puede ser muy lento en mapas grandes (explora en todas direcciones).</li>
+            <li>Alto consumo de memoria (almacena todos los nodos del nivel actual).</li>
         </ul>
-        <h4>Complejidad:</h4>
+
+        <h4>Complejidad O(b^d):</h4>
         <ul>
-            <li>Tiempo: O(b^d) — expande todos los nodos hasta profundidad d</li>
-            <li>Espacio: O(b^d) — almacena todos los nodos del nivel actual</li>
+            <li>Tiempo: Expande todos los nodos hasta profundidad d.</li>
+            <li>Espacio: Almacena todos los nodos del nivel actual.</li>
         </ul>
     </div>
 </div>
 
 <!-- SECCION: POR QUE SOLO A* y BFS -->
-<div class="section" id="why">
-    <h2>3️⃣ ¿Por que solo A* y BFS?</h2>
-    <p>Para este proyecto se seleccionaron exclusivamente estos dos algoritmos por las siguientes razones tecnicas y practicas:</p>
+<div class="section" id="porque">
+    <h2>Pero... ¿Por qué solo A* y BFS?</h2>
+    <p>Para este proyecto se seleccionaron exclusivamente estos dos algoritmos por las siguientes razones técnicas y prácticas:</p>
 
     <table>
         <tr>
             <th>Algoritmo</th>
-            <th>¿Por que NO se incluyo?</th>
+            <th>¿Por qué NO se incluyo?</th>
         </tr>
         <tr>
             <td>DFS (Depth-First Search)</td>
-            <td>No garantiza caminos optimos. Puede ciclar infinitamente. No adecuado para navegacion real donde cada movimiento tiene costo.</td>
+            <td>No garantiza caminos óptimos. Puede ciclar infinitamente. No adecuado para navegación real donde cada movimiento tiene costo.</td>
         </tr>
         <tr>
             <td>Greedy / Hill Climbing</td>
-            <td>Se queda atascado en minimos locales. No garantiza encontrar solucion. Inseguro para robot real.</td>
+            <td>Se queda atascado en mínimos locales. No garantiza encontrar solución. Inseguro para robot real.</td>
         </tr>
         <tr>
             <td>Q-Learning</td>
@@ -119,27 +354,29 @@
         </tr>
         <tr>
             <td>PPO / DQN / RL</td>
-            <td>Requieren redes neuronales, GPU, y grandes volumenes de datos de entrenamiento. Totalmente inviables en ESP32. El riesgo de colisiones durante entrenamiento viola el principio de Safe Learning.</td>
+            <td>Requieren redes neuronales, GPU y grandes volumenes de datos de entrenamiento. Totalmente inviables en ESP32. El riesgo de colisiones durante entrenamiento viola el principio de Safe Learning.</td>
         </tr>
         <tr>
-            <td>Algoritmos Geneticos</td>
-            <td>Requieren evaluar cientos/miles de generaciones. Computacionalmente costosos. No adecuados para navegacion en tiempo real.</td>
+            <td>Algoritmos Genéticos</td>
+            <td>Requieren evaluar cientos/miles de generaciones. Computacionalmente costosos. No adecuados para navegación en tiempo real.</td>
         </tr>
         <tr>
             <td>Dijkstra</td>
-            <td>Equivalente a A* con heuristica h(n)=0. A* subsumee a Dijkstra y es mas eficiente.</td>
+            <td>Equivalente a A* con heurística h(n)=0. A* subsumee a Dijkstra y es más eficiente.</td>
         </tr>
     </table>
 
     <div class="info-box important">
-        <strong>⚠️ Decision de diseno:</strong> A* y BFS son <strong>deterministicos, predecibles y garantizan solucion</strong>. Esto es critico para Safe Learning — no podemos permitir colisiones durante la fase de exploracion/aprendizaje. Ademas, el ESP32 del MechDog real no tiene recursos para redes neuronales ni aprendizaje por refuerzo.
+        Decisión de diseño: A* y BFS son determinísticos, predecibles y garantizan solución. 
+        Esto es crítico para Safe Learning, no se puede permitir colisiones durante la fase de exploración y aprendizaje. 
+        Además, el ESP32 del MechDog real no tiene recursos para redes neuronales ni aprendizaje por refuerzo.
     </div>
 </div>
 
 <!-- SECCION: RESULTADOS -->
-<div class="section" id="results">
-    <h2>4️⃣ Resultados Experimentales</h2>
-    <p>Los resultados se cargan desde los datos generados por <code>experiment_runner.py</code>. Si aun no se han ejecutado experimentos, se muestran datos de ejemplo.</p>
+<div class="section" id="resultados">
+    <h2> Resultados Experimentales</h2>
+    <p>Los resultados se cargan desde los datos generados por <strong>experiment_runner.py</strong>. Datos de ejemplo:</p>
 
     <div class="results-row">
         <div class="chart-container">
@@ -212,158 +449,212 @@
 </div>
 
 <!-- SECCION: METRICAS -->
-<div class="section" id="metrics">
-    <h2>5️⃣ Metricas Evaluadas</h2>
+<div class="section" id="metricas">
+    <h2>Métricas Evaluadas</h2>
     <table>
-        <tr><th>Metrica</th><th>Descripcion</th><th>Unidad</th><th>Donde se mide</th></tr>
+        <tr><th>Métrica</th><th>Descripción</th><th>Unidad</th><th>Dónde se mide</th></tr>
         <tr>
-            <td><strong>Tiempo de ejecucion</strong></td>
-            <td>Tiempo desde que se envia el goal hasta que el robot alcanza la posicion destino</td>
+            <td><strong>Tiempo de ejecución</strong></td>
+            <td>Tiempo desde que se envía el goal hasta que el robot alcanza la posición destino</td>
             <td>segundos (s)</td>
-            <td><code>metrics_aggregator.py</code></td>
+            <td>metrics_aggregator.py</td>
         </tr>
         <tr>
             <td><strong>Longitud del camino</strong></td>
             <td>Distancia total recorrida por el robot desde el origen hasta el destino</td>
             <td>metros (m)</td>
-            <td><code>navigation_manager_node.py</code></td>
+            <td>navigation_manager_node.py</td>
         </tr>
         <tr>
             <td><strong>Nodos explorados</strong></td>
             <td>Cantidad de celdas del occupancy grid que fueron marcadas como libres (exploradas)</td>
             <td>celdas</td>
-            <td><code>occupancy_grid_node.py</code></td>
+            <td>occupancy_grid_node.py</td>
         </tr>
         <tr>
             <td><strong>Cobertura del mapa</strong></td>
             <td>Porcentaje del occupancy grid que ha sido sensado (celdas conocidas / total)</td>
             <td>porcentaje (%)</td>
-            <td><code>metrics_aggregator.py</code></td>
+            <td>metrics_aggregator.py</td>
         </tr>
         <tr>
             <td><strong>Emergency Stops</strong></td>
-            <td>Cantidad de veces que el Safe Learning activo una parada de emergencia por obstaculo</td>
+            <td>Cantidad de veces que el Safe Learning activo una parada de emergencia por obstáculo</td>
             <td>conteo</td>
-            <td><code>safe_learning_node.py</code></td>
+            <td>safe_learning_node.py</td>
         </tr>
         <tr>
-            <td><strong>Intentos de recuperacion</strong></td>
-            <td>Veces que el robot quedo atascado y necesito maniobras de recuperacion</td>
+            <td><strong>Intentos de recuperación</strong></td>
+            <td>Veces que el robot quedo atascado y necesito maniobras de recuperación</td>
             <td>conteo</td>
-            <td><code>navigation_manager_node.py</code></td>
+            <td>navigation_manager_node.py</td>
         </tr>
         <tr>
-            <td><strong>Tasa de exito</strong></td>
+            <td><strong>Tasa de éxito</strong></td>
             <td>Porcentaje de goals de navegacion alcanzados exitosamente</td>
             <td>porcentaje (%)</td>
-            <td><code>experiment_runner.py</code></td>
+            <td>experiment_runner.py</td>
         </tr>
         <tr>
-            <td><strong>Tasa de evasion de colisiones</strong></td>
-            <td>Efectividad del sistema Safe Learning para evitar colisiones con obstaculos</td>
+            <td><strong>Tasa de evasión de colisiones</strong></td>
+            <td>Efectividad del sistema Safe Learning para evitar colisiones con obstáculos</td>
             <td>porcentaje (%)</td>
-            <td><code>metrics_aggregator.py</code></td>
+            <td>metrics_aggregator.py</td>
         </tr>
     </table>
 </div>
 
 <!-- SECCION: SAFE LEARNING -->
 <div class="section" id="safe">
-    <h2>6️⃣ Safe Learning (Aprendizaje Seguro)</h2>
-    <p>El modulo de <strong>Safe Learning</strong> es un componente critico que opera en paralelo al planificador para garantizar la integridad fisica del robot. Implementa un sistema de seguridad de tres niveles:</p>
+    <h2>Safe Learning (Aprendizaje Seguro)</h2>
+    <p>El modulo de <strong>Safe Learning</strong> es un componente crítico que opera en paralelo al planificador 
+        para garantizar la integridad fisica del robot. Implementa un sistema de seguridad de tres niveles:</p>
 
     <div class="level-cards">
         <div class="level-card critical">
-            <h4>🔴 Critico</h4>
+            <h4>Critico</h4>
             <p>Distancia &lt; 0.15m</p>
             <p>Parada inmediata</p>
-            <p>Frenado maximo</p>
+            <p>Frenado máximo</p>
         </div>
         <div class="level-card warning">
-            <h4>🟡 Warning</h4>
+            <h4>Warning</h4>
             <p>Distancia &lt; 0.30m</p>
-            <p>Reduccion de velocidad</p>
+            <p>Reducción de velocidad</p>
             <p>Escalado proporcional</p>
         </div>
         <div class="level-card safe">
-            <h4>🟢 Safe</h4>
+            <h4>Safe</h4>
             <p>Distancia &gt; 0.30m</p>
-            <p>Ejecucion normal</p>
+            <p>Ejecución normal</p>
             <p>Sin restricciones</p>
         </div>
     </div>
 
     <h3>Componentes del Safe Learning:</h3>
     <ul>
-        <li><strong>Poligono de seguridad dinamico:</strong> Se expande proporcionalmente a la velocidad: <code>largo = base_length + v · linear_factor</code>. A mayor velocidad, mayor area de seguridad al frente.</li>
-        <li><strong>Frenado predictivo:</strong> Calcula la distancia de frenado necesaria: <code>d = v²/(2·a) + v·t_reaction</code> y la multiplica por un factor de seguridad (1.5~2.0).</li>
-        <li><strong>Deteccion de punto muerto (dead-end):</strong> Despues de 3 paradas de emergencia consecutivas, activa el modo de recuperacion.</li>
-        <li><strong>Home Base / Punto Bueno:</strong> Si se excede el maximo de recuperaciones, el robot retorna automaticamente al punto de partida.</li>
-        <li><strong>Filtrado de autocolisiones:</strong> Ignora lecturas del sensor por debajo de <code>range_min + 0.06m</code> para evitar que las patas del robot disparen falsos positivos.</li>
+        <li><strong>Polígono de seguridad dinámico:</strong> Se expande proporcionalmente a la velocidad: 
+            <strong>largo = base_length + v · linear_factor</strong>. A mayor velocidad, mayor área de seguridad al frente.</li>
+
+        <li><strong>Frenado predictivo:</strong> Calcula la distancia de frenado necesaria: 
+            <strong>d = v²/(2·a) + v·t_reaction</strong> y la multiplica por un factor de seguridad (1.5~2.0).</li>
+
+        <li><strong>Detección de punto muerto (dead-end):</strong> Después de 3 paradas de emergencia consecutivas, activa el modo de recuperacion.</li>
+
+        <li><strong>Home Base / Punto Bueno:</strong> Si se excede el máximo de recuperaciones, el robot retorna automáticamente al punto de partida.</li>
+
+        <li><strong>Filtrado de autocolisiones:</strong> Ignora lecturas del sensor por debajo de <strong>range_min + 0.06m</strong> para evitar que las patas del robot disparen falsos positivos.</li>
     </ul>
 </div>
 
 <!-- SECCION: HOME BASE -->
 <div class="section" id="home">
-    <h2>7️⃣ Punto Bueno (Home Base)</h2>
-    <p>El <strong>Punto Bueno</strong> o <strong>Home Base</strong> es la posicion de origen a la que el robot puede retornar si encuentra condiciones inseguras. Implementado en <code>home_base_node.py</code>:</p>
+    <h2>Punto Bueno (Home Base)</h2>
+    <p>El Punto Bueno o Home Base es la posición de origen a la que el robot puede retornar si encuentra condiciones inseguras. Implementado en <strong>home_base_node.py</strong>:</p>
     <ul>
-        <li><strong>Posicion inicial:</strong> Se establece en las coordenadas de spawn del robot (tipicamente 0,0).</li>
-        <li><strong>Retorno automatico:</strong> Si se superan N intentos de recuperacion consecutivos, se envia automaticamente un goal de retorno al home.</li>
-        <li><strong>Zona segura:</strong> Radio de 1.0m alrededor del home donde el robot esta a salvo.</li>
-        <li><strong>Visualizacion:</strong> Se publica un marcador verde en RViz para identificar visualmente la posicion del home.</li>
+        <li><strong>Posición inicial:</strong> Se establece en las coordenadas de spawn del robot (tipicamente 0,0).</li>
+        <li><strong>Retorno automático:</strong> Si se superan N intentos de recuperación consecutivos, se envía automáticamente un goal de retorno al home.</li>
+        <li><strong>Zona segura:</strong> Radio de 1.0m alrededor del home donde el robot está a salvo.</li>
+        <li><strong>Visualización:</strong> Se publica un marcador verde en RViz para identificar visualmente la posición del home.</li>
     </ul>
 </div>
 
 <!-- SECCION: ESCENARIOS -->
-<div class="section" id="scenarios">
-    <h2>8️⃣ Escenarios de Prueba</h2>
-    <p>A diferencia de un laberinto tradicional (con pasillos y paredes), los escenarios disenados son <strong>campos abiertos con obstaculos dispersos</strong> que el robot debe analizar y rodear para encontrar la mejor ruta hacia la meta.</p>
+<div class="section" id="escenarios">
+    <h2>Escenarios de Prueba</h2>
+    <p>A diferencia de un laberinto tradicional (con pasillos y paredes), los escenarios diseñados son campos abiertos con obstáculos dispersos que el robot debe analizar y rodear para encontrar la mejor ruta hacia la meta.</p>
 
     <div class="scenario-cards">
         <div class="scenario-card">
-            <h4>🌱 Simple</h4>
-            <p><strong>3 obstaculos</strong></p>
-            <p>Para validacion basica del sistema. Obstaculos separados con espacio suficiente para maniobrar.</p>
+            <h4>Simple</h4>
+            <p><strong>3 obstáculos</strong></p>
+            <p>Para validación básica del sistema. Obstáculos separados con espacio suficiente para maniobrar.</p>
         </div>
         <div class="scenario-card">
-            <h4>🌿 Medium</h4>
-            <p><strong>8 obstaculos</strong></p>
-            <p>Dificultad media. Obstaculos colocados en patrones que requieren desviaciones de la linea recta.</p>
+            <h4>Medium</h4>
+            <p><strong>8 obstáculos</strong></p>
+            <p>Dificultad media. Obstáculos colocados en patrones que requieren desviaciones de la línea recta.</p>
         </div>
         <div class="scenario-card">
-            <h4>🌳 Complex</h4>
-            <p><strong>15 obstaculos</strong></p>
-            <p>Alta densidad de obstaculos. El robot debe calcular rutas complejas con multiples cambios de direccion.</p>
+            <h4>Complex</h4>
+            <p><strong>15 obstáculos</strong></p>
+            <p>Alta densidad de obstáculos. El robot debe calcular rutas complejas con múltiples cambios de dirección.</p>
         </div>
     </div>
 </div>
 
 <!-- SECCION: CONCLUSIONES -->
-<div class="section" id="conclusions">
-    <h2>9️⃣ Conclusiones</h2>
+<div class="section" id="conclusiones">
+    <h2>Conclusiones</h2>
 
     <div class="verdict" id="verdictBox">
-        <h3>⚡ Veredicto Final</h3>
+        <h3>Veredicto Final</h3>
         <p id="verdictText">Ejecuta experimentos para determinar el ganador entre A* y BFS.</p>
     </div>
 
     <h3>Recomendaciones:</h3>
     <ul>
-        <li><strong>A* es la opcion recomendada</strong> para el MechDog real por su eficiencia computacional y menor memoria requerida.</li>
-        <li><strong>Safe Learning es indispensable</strong> — sin el modulo de seguridad, cualquier planificador puede generar rutas que resulten en colisiones.</li>
-        <li><strong>El Punto Bueno (Home Base)</strong> proporciona una red de seguridad adicional permitiendo retirada automatica ante fallos.</li>
-        <li>Para el robot fisico con ESP32, se recomienda <strong>A* con heuristica Manhattan y peso 1.0</strong> como configuracion base.</li>
+        <li>A* es la opción recomendada para el MechDog real por su eficiencia computacional y menor memoria requerida.</li>
+        <li>Safe Learning es indispensable sin el módulo de seguridad, cualquier planificador puede generar rutas que resulten en colisiones.</li>
+        <li>El Punto Bueno (Home Base) proporciona una red de seguridad adicional permitiendo retirada automática ante fallos.</li>
+        <li>Para el robot fisico con ESP32, se recomienda A* con heurística Manhattan y peso 1.0 como configuración base.</li>
     </ul>
 </div>
+
+
+<div class="section" id="conclusions">
+    <h2>Referencias</h2>
+
+<p>
+    <a href="https://wiki.hiwonder.com/projects/MechDog/en/latest/" target="_blank">
+        Documentación oficial MechDog
+    </a>
+    <br><br>
+
+    <a href="https://www.hiwonder.com/products/mechdog?variant=41158973161559&srsltid=AfmBOora9psQniDgkEd1lwLYPzGljyW2CEm9QLnrjQID-AILob_nMKjd" target="_blank">
+        Página oficial Hiwonder MechDog
+    </a>
+    <br><br>
+
+    <a href="https://www.didacticaselectronicas.com/shop/hiwonder-mechdog-ult-robot-canino-mechdog-ultimate-con-vision-e-interaccion-por-voz-ia-hiwonder-48412" target="_blank">
+        Tienda Didácticas Electrónicas
+    </a>
+    <br><br>
+
+    <a href="https://descubrearduino.com/impresionante-robot-cuadrupedo-mechdog-de-12-servo/" target="_blank">
+        Artículo sobre MechDog
+    </a>
+    <br><br>
+
+    <a href="https://www.datacamp.com/es/tutorial/a-star-algorithm">
+        Algoritmo A*
+    </a>
+    <br><br>
+
+    <a href="https://www-redblobgames-com.translate.goog/pathfinding/a-star/implementation.html?_x_tr_sl=en&_x_tr_tl=es&_x_tr_hl=es&_x_tr_pto=tc">
+        Implementación del algoritmo A*
+    </a>
+    <br><br>
+
+    <a href="https://www.datacamp.com/es/tutorial/breadth-first-search-in-python">
+        Búsqueda en profundidad en Python: Guía con ejemplos
+    </a>
+    <br><br>
+
+    <a href="https://medium.com/@leonardoingallshernandez/que-es-breadth-first-search-bfs-y-como-utilizarlo-5f9dae3e4de7">
+        Que es Breadth First Search(BFS) y como utilizarlo
+    </a>
+    <br><br>
+
+</p>
+
+</div>
+
 
 </div>
 
 <div class="footer">
-    <p>MechDog Experiment Framework v1.0</p>
-    <p>Generado por <code>report_generator.py</code></p>
-    <p>ROS Noetic · Gazebo Classic · Docker · noVNC</p>
-    <p><a href="https://wiki.hiwonder.com/projects/MechDog/en/latest/">Documentacion oficial Hiwonder MechDog</a></p>
+    <p>Inteligencia Artificial 2026</p>
 </div>
 
 <script src="assets/charts.js"></script>
